@@ -1,0 +1,121 @@
+<div class="mx-auto max-w-3xl">
+  <a routerLink="/app/equipo" class="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
+    <ng-icon name="heroArrowLeft" size="16" /> Equipo
+  </a>
+
+  @if (staff.isLoading() && !staff.hasValue()) {
+    <div class="card mt-6 h-96 animate-pulse bg-surface-2" aria-label="Cargando horario"></div>
+  } @else if (staff.error()) {
+    <div class="card mt-6 p-8 text-center">
+      <p class="font-semibold">No se encontró a esta persona.</p>
+      <a routerLink="/app/equipo" class="btn-secondary mt-4">Volver al equipo</a>
+    </div>
+  } @else if (staff.hasValue()) {
+    @let person = staff.value();
+    <div class="mt-4 flex flex-wrap items-end justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <span class="size-4 rounded-full" [style.background-color]="person.color" aria-hidden="true"></span>
+        <div>
+          <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Horario de {{ person.name }}</h1>
+          <p class="mt-1 text-muted">Las horas son las de tu negocio. Sus clientes solo podrán reservar dentro de estos tramos.</p>
+        </div>
+      </div>
+    </div>
+
+    @if (editable()) {
+      <div class="mt-6 flex flex-wrap gap-2">
+        <button type="button" class="btn-secondary" (click)="useTypical()">
+          <ng-icon name="heroSparkles" size="17" /> Usar horario típico
+        </button>
+        <button type="button" class="btn-secondary" (click)="copyMondayToWorkdays()" [disabled]="week().Monday.length === 0">
+          <ng-icon name="heroDocumentDuplicate" size="17" /> Copiar el lunes a martes–viernes
+        </button>
+      </div>
+    }
+
+    <ul class="card mt-4 divide-y divide-line">
+      @for (day of weekdays; track day.id) {
+        @let slots = week()[day.id];
+        @let error = errors()[day.id];
+        <li class="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:p-5">
+          <label class="flex w-36 shrink-0 items-center gap-3 pt-2" [class.cursor-pointer]="editable()">
+            <input
+              #openBox
+              type="checkbox"
+              class="size-4 accent-violet-600"
+              [checked]="slots.length > 0"
+              [disabled]="!editable()"
+              (change)="setOpen(day.id, openBox.checked)"
+            />
+            <span class="font-semibold">{{ day.label }}</span>
+          </label>
+
+          <div class="min-w-0 flex-1">
+            @if (slots.length === 0) {
+              <p class="pt-2 text-sm text-faint">No atiende</p>
+            } @else {
+              <ul class="space-y-2">
+                @for (slot of slots; track $index; let i = $index) {
+                  <li class="flex items-center gap-2">
+                    <label class="sr-only" [for]="day.id + '-start-' + i">Apertura del tramo {{ i + 1 }} del {{ day.label }}</label>
+                    <input
+                      #startInput
+                      [id]="day.id + '-start-' + i"
+                      type="time"
+                      step="300"
+                      class="field-input w-32"
+                      [value]="slot.start"
+                      [disabled]="!editable()"
+                      (change)="setTime(day.id, i, 'start', startInput.value)"
+                    />
+                    <span class="text-muted" aria-hidden="true">a</span>
+                    <label class="sr-only" [for]="day.id + '-end-' + i">Cierre del tramo {{ i + 1 }} del {{ day.label }}</label>
+                    <input
+                      #endInput
+                      [id]="day.id + '-end-' + i"
+                      type="time"
+                      step="300"
+                      class="field-input w-32"
+                      [value]="slot.end"
+                      [disabled]="!editable()"
+                      (change)="setTime(day.id, i, 'end', endInput.value)"
+                    />
+                    @if (editable()) {
+                      <button
+                        type="button"
+                        class="btn-ghost px-2 hover:text-danger"
+                        (click)="removeSlot(day.id, i)"
+                        [attr.aria-label]="'Quitar el tramo ' + (i + 1) + ' del ' + day.label"
+                      >
+                        <ng-icon name="heroXMark" size="18" />
+                      </button>
+                    }
+                  </li>
+                }
+              </ul>
+              @if (error) {
+                <p class="field-error" role="alert">{{ error }}</p>
+              }
+            }
+            @if (editable() && slots.length > 0 && slots.length < maxRanges) {
+              <button type="button" class="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline" (click)="addSlot(day.id)">
+                <ng-icon name="heroPlus" size="15" /> Agregar tramo
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+
+    @if (editable()) {
+      <div class="sticky bottom-4 mt-6 flex items-center justify-end gap-3">
+        @if (dirty()) {
+          <p class="text-sm text-muted">Tienes cambios sin guardar.</p>
+        }
+        <button type="button" class="btn-primary px-6 shadow-xl" [disabled]="saving() || !dirty() || hasErrors()" (click)="save()">
+          {{ saving() ? 'Guardando…' : 'Guardar horario' }}
+        </button>
+      </div>
+    }
+  }
+</div>

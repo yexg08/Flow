@@ -13,7 +13,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { API_BASE } from '../../core/http/api';
 import { ToastService } from '../../core/notifications/toast.service';
 import { publicUrl } from '../../shared/slug';
-import { BusinessSettings, Service } from './business.models';
+import { BusinessSettings, Service, StaffMember } from './business.models';
 
 @Component({
   selector: 'app-home',
@@ -80,9 +80,9 @@ import { BusinessSettings, Service } from './business.models';
       <section class="card mt-8 flex items-start gap-4 border-dashed p-5">
         <ng-icon name="heroCalendarDays" size="24" class="shrink-0 text-accent" />
         <div>
-          <h2 class="font-semibold">Próximamente: horarios, agenda y reservas</h2>
+          <h2 class="font-semibold">Próximamente: reservas y agenda</h2>
           <p class="mt-1 text-sm text-muted">
-            En las siguientes versiones podrás definir los horarios de tu equipo y tus clientes reservarán desde tu enlace.
+            Con los horarios de tu equipo listos, en la siguiente versión tus clientes podrán reservar desde tu enlace.
           </p>
         </div>
       </section>
@@ -95,6 +95,7 @@ export class Home {
 
   private readonly services = httpResource<Service[]>(() => `${API_BASE}/services`);
   private readonly business = httpResource<BusinessSettings>(() => `${API_BASE}/business`);
+  private readonly staff = httpResource<StaffMember[]>(() => `${API_BASE}/staff`);
 
   protected readonly copied = signal(false);
   protected readonly firstName = computed(() => this.auth.user()?.fullName.split(' ')[0] ?? '');
@@ -106,6 +107,7 @@ export class Home {
   protected readonly steps = computed(() => {
     const serviceCount = this.services.hasValue() ? this.services.value().filter((s) => s.isActive).length : 0;
     const hasWhatsApp = this.business.hasValue() && !!this.business.value().whatsApp;
+    const scheduled = this.staff.hasValue() ? this.staff.value().filter((s) => s.isActive && s.workingHours.length > 0).length : 0;
     const owner = this.auth.isOwner();
     return [
       { title: 'Crea tu negocio', text: 'Ya tienes tu cuenta y tu enlace.', done: true, link: null, action: '' },
@@ -115,6 +117,16 @@ export class Home {
         done: serviceCount > 0,
         link: '/app/servicios',
         action: 'Agregar',
+      },
+      {
+        title: 'Arma tu equipo y sus horarios',
+        text:
+          scheduled > 0
+            ? `${scheduled} persona(s) con horario para recibir reservas.`
+            : 'Quién atiende y en qué horario (si trabajas solo, agrégate a ti).',
+        done: scheduled > 0,
+        link: '/app/equipo',
+        action: owner ? 'Configurar' : 'Ver',
       },
       {
         title: 'Conecta tu WhatsApp',

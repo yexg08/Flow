@@ -3,7 +3,10 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Flow.Application.Abstractions;
+using Flow.Application.Common;
+using Flow.Infrastructure.Identity;
 using Flow.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -89,6 +92,20 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     public Task<HttpClient> LoginAsSuperAdminAsync() => LoginAsync(SuperAdminEmail, SuperAdminPassword);
+
+    /// <summary>Crea una cuenta de empleado en el negocio y devuelve su cliente HTTP con sesión.</summary>
+    public async Task<HttpClient> CreateStaffAccountAsync(Guid tenantId)
+    {
+        var email = $"empleado.{Guid.NewGuid():N}@flow.test";
+        using (var scope = Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var user = new AppUser { UserName = email, Email = email, FullName = "Empleado", TenantId = tenantId, CreatedAt = DateTime.UtcNow };
+            Assert.True((await users.CreateAsync(user, OwnerPassword)).Succeeded);
+            await users.AddToRoleAsync(user, Roles.Staff);
+        }
+        return await LoginAsync(email, OwnerPassword);
+    }
 
     /// <summary>Ejecuta código contra la base con un negocio fijado a mano (como lo haría un proceso sin petición).</summary>
     public async Task<T> WithDbAsync<T>(Guid? tenantId, Func<AppDbContext, IServiceProvider, Task<T>> action)

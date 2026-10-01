@@ -7,8 +7,12 @@ public interface IAppDbContext
 {
     DbSet<Tenant> Tenants { get; }
 
-    /// <summary>Filtrado automáticamente al negocio de la sesión.</summary>
+    // Todos los siguientes se filtran automáticamente al negocio de la sesión.
     DbSet<BookableService> Services { get; }
+    DbSet<StaffMember> Staff { get; }
+    DbSet<StaffMemberService> StaffServices { get; }
+    DbSet<WorkingHours> WorkingHours { get; }
+    DbSet<TimeOff> TimeOff { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

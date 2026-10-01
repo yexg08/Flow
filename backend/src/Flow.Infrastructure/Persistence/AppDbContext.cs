@@ -12,6 +12,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<BookableService> Services => Set<BookableService>();
+    public DbSet<StaffMember> Staff => Set<StaffMember>();
+    public DbSet<StaffMemberService> StaffServices => Set<StaffMemberService>();
+    public DbSet<WorkingHours> WorkingHours => Set<WorkingHours>();
+    public DbSet<TimeOff> TimeOff => Set<TimeOff>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     /// <summary>

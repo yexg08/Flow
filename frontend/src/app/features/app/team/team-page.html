@@ -1,0 +1,92 @@
+<div class="mx-auto max-w-4xl">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Equipo</h1>
+      <p class="mt-1 text-muted">Quién atiende, qué servicios hace y en qué horario.</p>
+    </div>
+    @if (auth.isOwner()) {
+      <button type="button" class="btn-primary" (click)="open()"><ng-icon name="heroPlus" size="18" /> Agregar persona</button>
+    }
+  </div>
+
+  @if (staff.isLoading() && staff.value().length === 0) {
+    <ul class="mt-8 space-y-3" aria-label="Cargando equipo">
+      @for (i of [1, 2]; track i) {
+        <li class="card h-24 animate-pulse bg-surface-2"></li>
+      }
+    </ul>
+  } @else if (staff.error()) {
+    <div class="card mt-8 p-8 text-center">
+      <p class="font-semibold">No se pudo cargar tu equipo.</p>
+      <button type="button" class="btn-secondary mt-4" (click)="staff.reload()">Reintentar</button>
+    </div>
+  } @else if (staff.value().length === 0) {
+    <div class="card mt-8 flex flex-col items-center px-6 py-14 text-center">
+      <div class="flex size-14 items-center justify-center rounded-2xl bg-violet-500/15 text-accent">
+        <ng-icon name="heroUsers" size="28" />
+      </div>
+      <h2 class="mt-5 text-lg font-bold">Agrega a quien atiende</h2>
+      <p class="mt-1 max-w-sm text-sm text-muted">
+        Si trabajas solo, agrégate a ti. Cada persona tiene su propio horario y sus clientes podrán elegirla al reservar.
+      </p>
+      @if (auth.isOwner()) {
+        <button type="button" class="btn-primary mt-6" (click)="open()"><ng-icon name="heroPlus" size="18" /> Agregar la primera</button>
+      }
+    </div>
+  } @else {
+    <ul class="mt-8 space-y-3">
+      @for (person of staff.value(); track person.id) {
+        @let services = servicesOf(person);
+        @let week = summarize(person.workingHours);
+        <li class="card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5" [class.opacity-70]="!person.isActive">
+          <div
+            class="flex size-12 shrink-0 items-center justify-center rounded-full text-lg font-bold"
+            [style.background-color]="person.color"
+            [style.color]="textOn(person.color)"
+            aria-hidden="true"
+          >
+            {{ person.name.charAt(0).toUpperCase() }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-semibold">{{ person.name }}</h2>
+              @if (!person.isActive) {
+                <span class="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-xs text-muted">No recibe reservas</span>
+              }
+            </div>
+            <p class="mt-1 flex items-start gap-1.5 text-sm" [class]="week ? 'text-muted' : 'text-danger'">
+              <ng-icon name="heroClock" size="15" class="mt-0.5 shrink-0" />
+              {{ week || 'Sin horario: no aparecerá disponible para reservar.' }}
+            </p>
+            @if (services.length > 0) {
+              <ul class="mt-2 flex flex-wrap gap-1.5" aria-label="Servicios">
+                @for (name of services.slice(0, 4); track name) {
+                  <li class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs text-muted">{{ name }}</li>
+                }
+                @if (services.length > 4) {
+                  <li class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs text-muted">+{{ services.length - 4 }} más</li>
+                }
+              </ul>
+            } @else {
+              <p class="mt-2 text-xs text-faint">Sin servicios asignados.</p>
+            }
+          </div>
+          <div class="flex flex-wrap gap-2 sm:shrink-0">
+            <a [routerLink]="[person.id, 'horario']" class="btn-secondary">
+              <ng-icon name="heroClock" size="17" /> {{ auth.isOwner() ? 'Horario' : 'Ver horario' }}
+            </a>
+            @if (auth.isOwner()) {
+              <button type="button" class="btn-secondary" (click)="open(person)" [attr.aria-label]="'Editar a ' + person.name">
+                <ng-icon name="heroPencilSquare" size="17" />
+                <span class="sm:sr-only">Editar</span>
+              </button>
+              <button type="button" class="btn-ghost px-2.5 hover:text-danger" (click)="remove(person)" [attr.aria-label]="'Eliminar a ' + person.name">
+                <ng-icon name="heroTrash" size="18" />
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

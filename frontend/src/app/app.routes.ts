@@ -12,6 +12,9 @@ export const routes: Routes = [
     children: [
       { path: '', title: 'Inicio · Flow', loadComponent: () => import('./features/app/home').then((m) => m.Home) },
       { path: 'servicios', title: 'Servicios · Flow', loadComponent: () => import('./features/app/services/services-page').then((m) => m.ServicesPage) },
+      { path: 'equipo', title: 'Equipo · Flow', loadComponent: () => import('./features/app/team/team-page').then((m) => m.TeamPage) },
+      { path: 'equipo/:id/horario', title: 'Horario · Flow', loadComponent: () => import('./features/app/team/schedule-page').then((m) => m.SchedulePage) },
+      { path: 'bloqueos', title: 'Bloqueos · Flow', loadComponent: () => import('./features/app/time-off/time-off-page').then((m) => m.TimeOffPage) },
       { path: 'ajustes', title: 'Ajustes · Flow', canActivate: [ownerGuard], loadComponent: () => import('./features/app/settings/settings').then((m) => m.Settings) },
     ],
   },

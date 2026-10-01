@@ -1,6 +1,7 @@
 using Flow.Application.Business;
 using Flow.Application.Catalog;
 using Flow.Application.Public;
+using Flow.Application.Team;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,6 +15,8 @@ public static class DependencyInjection
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IBusinessService, BusinessService>();
         services.AddScoped<IPublicBusinessService, PublicBusinessService>();
+        services.AddScoped<ITeamService, TeamService>();
+        services.AddScoped<ITimeOffService, TimeOffService>();
         return services;
     }
 }

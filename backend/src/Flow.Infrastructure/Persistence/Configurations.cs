@@ -33,6 +33,58 @@ public class BookableServiceConfiguration : IEntityTypeConfiguration<BookableSer
     }
 }
 
+public class StaffMemberConfiguration : IEntityTypeConfiguration<StaffMember>
+{
+    public void Configure(EntityTypeBuilder<StaffMember> b)
+    {
+        b.ToTable("staff_members");
+        b.Property(s => s.Name).HasMaxLength(80).IsRequired();
+        b.Property(s => s.Color).HasMaxLength(7).IsRequired();
+        b.HasIndex(s => s.TenantId);
+        b.HasOne<Tenant>().WithMany().HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Restrict);
+        // Al borrar a la persona se borran sus horarios, sus servicios y sus bloqueos (lo hace la base de datos).
+        b.HasMany(s => s.Services).WithOne().HasForeignKey(x => x.StaffMemberId).OnDelete(DeleteBehavior.Cascade);
+        b.HasMany(s => s.WorkingHours).WithOne().HasForeignKey(x => x.StaffMemberId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class StaffMemberServiceConfiguration : IEntityTypeConfiguration<StaffMemberService>
+{
+    public void Configure(EntityTypeBuilder<StaffMemberService> b)
+    {
+        b.ToTable("staff_member_services");
+        b.HasKey(x => new { x.StaffMemberId, x.ServiceId });
+        b.HasIndex(x => x.ServiceId);
+        b.HasIndex(x => x.TenantId);
+        // Al borrar un servicio, deja de estar asignado a las personas que lo hacían.
+        b.HasOne<BookableService>().WithMany().HasForeignKey(x => x.ServiceId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class WorkingHoursConfiguration : IEntityTypeConfiguration<WorkingHours>
+{
+    public void Configure(EntityTypeBuilder<WorkingHours> b)
+    {
+        b.ToTable("working_hours");
+        b.HasIndex(x => new { x.TenantId, x.StaffMemberId });
+        b.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        b.ToTable(t => t.HasCheckConstraint("ck_working_hours_range", "\"End\" > \"Start\""));
+    }
+}
+
+public class TimeOffConfiguration : IEntityTypeConfiguration<TimeOff>
+{
+    public void Configure(EntityTypeBuilder<TimeOff> b)
+    {
+        b.ToTable("time_off", t => t.HasCheckConstraint("ck_time_off_range", "\"EndsAtUtc\" > \"StartsAtUtc\""));
+        b.Property(x => x.Reason).HasMaxLength(200);
+        b.HasIndex(x => new { x.TenantId, x.EndsAtUtc });
+        b.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<StaffMember>().WithMany().HasForeignKey(x => x.StaffMemberId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 {
     public void Configure(EntityTypeBuilder<RefreshToken> b)

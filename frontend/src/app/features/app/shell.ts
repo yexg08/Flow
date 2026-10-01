@@ -8,7 +8,9 @@ import {
   heroBars3,
   heroCog6Tooth,
   heroHome,
+  heroNoSymbol,
   heroSquares2x2,
+  heroUsers,
   heroXMark,
 } from '@ng-icons/heroicons/outline';
 import { filter } from 'rxjs';
@@ -28,7 +30,17 @@ interface NavItem {
   selector: 'app-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon, Logo, ThemeToggle],
   providers: [
-    provideIcons({ heroArrowRightOnRectangle, heroArrowTopRightOnSquare, heroBars3, heroCog6Tooth, heroHome, heroSquares2x2, heroXMark }),
+    provideIcons({
+      heroArrowRightOnRectangle,
+      heroArrowTopRightOnSquare,
+      heroBars3,
+      heroCog6Tooth,
+      heroHome,
+      heroNoSymbol,
+      heroSquares2x2,
+      heroUsers,
+      heroXMark,
+    }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.html',
@@ -40,6 +52,8 @@ export class Shell {
   private readonly items: NavItem[] = [
     { path: '/app', label: 'Inicio', icon: 'heroHome', exact: true, ownerOnly: false },
     { path: '/app/servicios', label: 'Servicios', icon: 'heroSquares2x2', exact: false, ownerOnly: false },
+    { path: '/app/equipo', label: 'Equipo y horarios', icon: 'heroUsers', exact: false, ownerOnly: false },
+    { path: '/app/bloqueos', label: 'Bloqueos', icon: 'heroNoSymbol', exact: false, ownerOnly: false },
     { path: '/app/ajustes', label: 'Ajustes del negocio', icon: 'heroCog6Tooth', exact: false, ownerOnly: true },
   ];
 

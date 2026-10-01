@@ -7,6 +7,7 @@ import { heroCheck, heroExclamationTriangle } from '@ng-icons/heroicons/outline'
 import { AuthService } from '../../../core/auth/auth.service';
 import { API_BASE, getErrorMessage, getFieldErrors, silentErrors } from '../../../core/http/api';
 import { ToastService } from '../../../core/notifications/toast.service';
+import { COLOR_PRESETS } from '../../../shared/colors';
 import { readableTextOn } from '../../../shared/format';
 import { hasValidSlugFormat } from '../../../shared/slug';
 import { BusinessSettings, UpdateBusiness } from '../business.models';
@@ -29,18 +30,6 @@ export const TIME_ZONES = [
   { id: 'Europe/Madrid', label: 'España (Madrid)' },
 ];
 
-export const ACCENT_PRESETS = [
-  { color: '#a855f7', name: 'Violeta' },
-  { color: '#ec4899', name: 'Rosa' },
-  { color: '#6366f1', name: 'Índigo' },
-  { color: '#0ea5e9', name: 'Celeste' },
-  { color: '#14b8a6', name: 'Turquesa' },
-  { color: '#22c55e', name: 'Verde' },
-  { color: '#f59e0b', name: 'Ámbar' },
-  { color: '#ef4444', name: 'Rojo' },
-  { color: '#1f2937', name: 'Grafito' },
-];
-
 type Field = 'name' | 'slug' | 'timeZone' | 'whatsApp' | 'accentColor';
 
 @Component({
@@ -57,7 +46,7 @@ export class Settings {
 
   protected readonly business = httpResource<BusinessSettings>(() => `${API_BASE}/business`);
   protected readonly timeZones = TIME_ZONES;
-  protected readonly presets = ACCENT_PRESETS;
+  protected readonly presets = COLOR_PRESETS;
   protected readonly host = location.host;
 
   protected readonly form = inject(NonNullableFormBuilder).group({

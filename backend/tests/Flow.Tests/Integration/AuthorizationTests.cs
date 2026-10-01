@@ -96,7 +96,7 @@ public class AuthorizationTests(ApiFactory factory)
     {
         var business = await factory.RegisterBusinessAsync();
         var serviceId = await ApiFactory.CreateServiceAsync(business.Client);
-        var staff = await CreateStaffAsync(business.TenantId);
+        var staff = await factory.CreateStaffAccountAsync(business.TenantId);
 
         await ApiFactory.Expect(await staff.GetAsync("/api/services"), HttpStatusCode.OK);
         await ApiFactory.Expect(await staff.GetAsync("/api/business"), HttpStatusCode.OK);
@@ -109,18 +109,5 @@ public class AuthorizationTests(ApiFactory factory)
         }
 
         await ApiFactory.Expect(await staff.DeleteAsync($"/api/services/{serviceId}"), HttpStatusCode.Forbidden);
-    }
-
-    private async Task<HttpClient> CreateStaffAsync(Guid tenantId)
-    {
-        var email = $"empleado.{Guid.NewGuid():N}@flow.test";
-        using (var scope = factory.Services.CreateScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            var user = new AppUser { UserName = email, Email = email, FullName = "Empleado", TenantId = tenantId, CreatedAt = DateTime.UtcNow };
-            Assert.True((await users.CreateAsync(user, ApiFactory.OwnerPassword)).Succeeded);
-            await users.AddToRoleAsync(user, Roles.Staff);
-        }
-        return await factory.LoginAsync(email, ApiFactory.OwnerPassword);
     }
 }

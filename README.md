@@ -20,7 +20,7 @@ aislados de los demás negocios.
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Base: registro de negocios, login, aislamiento multi-negocio, superadmin, servicios, página pública | Hecha |
-| 2 | Equipo, horarios semanales y bloqueos | Pendiente |
+| 2 | Equipo, horarios semanales y bloqueos | Hecha |
 | 3 | Reserva pública: horarios disponibles, reservar sin cuenta, cancelar/reprogramar | Pendiente |
 | 4 | Agenda del negocio (día/semana), estados de cita, clientes | Pendiente |
 | 5 | Métricas, avisos por WhatsApp | Pendiente |
@@ -46,6 +46,19 @@ barreras, y cada una tiene pruebas:
 
 La **página pública** (`/n/{slug}`) es el único lugar que lee datos de negocio sin sesión: ignora el filtro de forma
 explícita, filtra a mano por el negocio del enlace y usa DTOs propios con solo los campos pensados para el público.
+
+### Equipo, horarios y bloqueos
+
+- El **equipo** son las personas que atienden (no son cuentas de usuario): nombre, color en la agenda y los
+  servicios que hace. Solo se le pueden asignar servicios del propio negocio.
+- El **horario semanal** admite varios tramos por día (mañana y tarde). Las reglas (formato `HH:mm`, pasos de 5
+  minutos, cierre después de la apertura, sin tramos que se crucen) están en `Application/Team/Schedule.cs` y se
+  repiten en el frontend (`shared/schedule.ts`) para guiar al usuario; la base además tiene una restricción `CHECK`.
+- Los **bloqueos** son de una persona o de todo el negocio (un festivo). Se escriben y se muestran en la **hora local
+  del negocio** y se guardan en UTC según su zona horaria. Las horas que no existen por el cambio de horario se
+  rechazan.
+- Borrar un servicio lo quita de quienes lo hacían; borrar a una persona borra su horario y sus bloqueos (en cascada
+  en la base de datos).
 
 ### Roles
 
@@ -118,7 +131,7 @@ origen y no hace falta CORS.
 | `/` | Página de inicio de Flow |
 | `/registro` | Crear un negocio (registro abierto) |
 | `/login` | Iniciar sesión |
-| `/app` | Panel del negocio: inicio, servicios, ajustes |
+| `/app` | Panel del negocio: inicio, servicios, equipo y horarios, bloqueos, ajustes |
 | `/admin` | Panel de la plataforma (superadmin) |
 | `/n/{enlace}` | Página pública de un negocio |
 
