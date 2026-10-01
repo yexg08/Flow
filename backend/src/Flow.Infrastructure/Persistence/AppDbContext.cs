@@ -1,4 +1,6 @@
 using Flow.Application.Abstractions;
+using Flow.Application.Common;
+using Npgsql;
 using Flow.Domain.Common;
 using Flow.Domain.Entities;
 using Flow.Infrastructure.Identity;
@@ -16,6 +18,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<StaffMemberService> StaffServices => Set<StaffMemberService>();
     public DbSet<WorkingHours> WorkingHours => Set<WorkingHours>();
     public DbSet<TimeOff> TimeOff => Set<TimeOff>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     /// <summary>
@@ -27,6 +31,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        // Necesaria para la restricción que impide citas cruzadas (combina "=" sobre la persona con "&&" sobre el rango).
+        builder.HasPostgresExtension("btree_gist");
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         // Filtro de negocio en TODAS las entidades ITenantOwned, incluidas las que se agreguen en el futuro.
@@ -42,4 +48,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
 
     private void ApplyTenantFilter<T>(ModelBuilder builder) where T : class, ITenantOwned =>
         builder.Entity<T>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        try
+        {
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+        catch (DbUpdateException e) when (IsScheduleConflict(e))
+        {
+            throw new ScheduleConflictException();
+        }
+    }
+
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+        }
+        catch (DbUpdateException e) when (IsScheduleConflict(e))
+        {
+            throw new ScheduleConflictException();
+        }
+    }
+
+    /// <summary>La base rechazó una cita que se cruza con otra (dos reservas al mismo tiempo para el mismo horario).</summary>
+    private static bool IsScheduleConflict(DbUpdateException e) =>
+        e.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.ExclusionViolation,
+            ConstraintName: AppointmentConfiguration.NoOverlapConstraint
+        };
 }

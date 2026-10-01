@@ -13,6 +13,8 @@ public interface IAppDbContext
     DbSet<StaffMemberService> StaffServices { get; }
     DbSet<WorkingHours> WorkingHours { get; }
     DbSet<TimeOff> TimeOff { get; }
+    DbSet<Customer> Customers { get; }
+    DbSet<Appointment> Appointments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

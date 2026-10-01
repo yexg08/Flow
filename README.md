@@ -21,7 +21,7 @@ aislados de los demás negocios.
 |---|---|---|
 | 1 | Base: registro de negocios, login, aislamiento multi-negocio, superadmin, servicios, página pública | Hecha |
 | 2 | Equipo, horarios semanales y bloqueos | Hecha |
-| 3 | Reserva pública: horarios disponibles, reservar sin cuenta, cancelar/reprogramar | Pendiente |
+| 3 | Reserva pública: horarios disponibles, reservar sin cuenta, cancelar/reprogramar | Hecha |
 | 4 | Agenda del negocio (día/semana), estados de cita, clientes | Pendiente |
 | 5 | Métricas, avisos por WhatsApp | Pendiente |
 | 6 | Pulido: capturas, demo en vivo, CI, Docker completo | Pendiente |
@@ -59,6 +59,25 @@ explícita, filtra a mano por el negocio del enlace y usa DTOs propios con solo 
   rechazan.
 - Borrar un servicio lo quita de quienes lo hacían; borrar a una persona borra su horario y sus bloqueos (en cascada
   en la base de datos).
+
+### Reservas
+
+- **Horarios libres** (`Application/Booking/AvailabilityEngine.cs`): cada 15 minutos dentro de los tramos del horario
+  donde cabe el servicio completo, sin cruzarse con otras citas ni con bloqueos, con al menos 15 minutos de
+  anticipación y hasta 60 días adelante. Todo se calcula en la zona horaria del negocio.
+- **Reservar sin cuenta**: nombre, celular y autorización expresa del uso de los datos (Ley 1581). El cliente queda
+  identificado por su celular dentro de cada negocio, con máximo 3 citas próximas por celular. Con "cualquier
+  persona", la cita va a quien tenga menos citas ese día.
+- **El servidor nunca confía en el navegador**: al reservar vuelve a calcular el horario y toma el precio de la base.
+- **Sin dobles reservas, ni siquiera simultáneas**: además de la validación de la app, PostgreSQL tiene una
+  restricción de exclusión (`EXCLUDE USING gist`, con `btree_gist`) que impide dos citas activas de la misma persona
+  con rangos cruzados. Una prueba lanza 8 reservas al mismo tiempo por el mismo horario y solo una entra; sin la
+  restricción, entran las 8.
+- **Enlace privado para gestionar la cita** (`/cita/{token}`): ver, reprogramar o cancelar. El token tiene 256 bits y
+  en la base solo se guarda su SHA-256. Es la única consulta que busca entre todos los negocios; después se fija el
+  negocio de esa cita y todo lo demás pasa por el filtro normal. La página usa `Referrer-Policy: no-referrer` para que
+  el token no viaje a otros sitios.
+- Un servicio o una persona con citas no se puede borrar (se desactiva), para no perder el historial.
 
 ### Roles
 
@@ -134,6 +153,8 @@ origen y no hace falta CORS.
 | `/app` | Panel del negocio: inicio, servicios, equipo y horarios, bloqueos, ajustes |
 | `/admin` | Panel de la plataforma (superadmin) |
 | `/n/{enlace}` | Página pública de un negocio |
+| `/n/{enlace}/reservar/{servicio}` | Reservar: persona, día, hora y datos |
+| `/cita/{token}` | La cita del cliente: ver, reprogramar o cancelar |
 
 ## Pruebas
 

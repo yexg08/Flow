@@ -56,6 +56,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("RateLimiting:AuthPerMinute", "100000");
         builder.UseSetting("RateLimiting:SlugCheckPerMinute", "100000");
         builder.UseSetting("RateLimiting:PublicPerMinute", "100000");
+        builder.UseSetting("RateLimiting:BookingPerMinute", "100000");
     }
 
     /// <summary>Cliente por https: la cookie de refresh es Secure y no viaja por http.</summary>

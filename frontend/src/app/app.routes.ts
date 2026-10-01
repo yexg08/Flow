@@ -20,5 +20,7 @@ export const routes: Routes = [
   },
   { path: 'admin', title: 'Plataforma · Flow', canActivate: [superAdminGuard], loadComponent: () => import('./features/admin/admin').then((m) => m.Admin) },
   { path: 'n/:slug', loadComponent: () => import('./features/public/public-business').then((m) => m.PublicBusiness) },
+  { path: 'n/:slug/reservar/:serviceId', loadComponent: () => import('./features/public/book-appointment').then((m) => m.BookAppointment) },
+  { path: 'cita/:token', title: 'Tu cita · Flow', loadComponent: () => import('./features/public/manage-appointment').then((m) => m.ManageAppointment) },
   { path: '**', title: 'Página no encontrada · Flow', loadComponent: () => import('./features/not-found').then((m) => m.NotFound) },
 ];

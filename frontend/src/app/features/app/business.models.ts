@@ -45,6 +45,21 @@ export interface TimeOffRequest {
   reason: string | null;
 }
 
+/** Cita vista desde el panel. Fechas en hora local del negocio, sin zona. */
+export interface UpcomingAppointment {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  serviceName: string;
+  staffMemberId: string;
+  staffName: string;
+  staffColor: string;
+  customerName: string;
+  customerPhone: string;
+  customerNote: string | null;
+  price: number;
+}
+
 export interface BusinessSettings {
   id: string;
   name: string;

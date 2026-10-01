@@ -13,7 +13,9 @@ import { AuthService } from '../../core/auth/auth.service';
 import { API_BASE } from '../../core/http/api';
 import { ToastService } from '../../core/notifications/toast.service';
 import { publicUrl } from '../../shared/slug';
-import { BusinessSettings, Service, StaffMember } from './business.models';
+import { whatsAppNumber } from '../../shared/format';
+import { formatTime, parseLocal } from '../../shared/schedule';
+import { BusinessSettings, Service, StaffMember, UpcomingAppointment } from './business.models';
 
 @Component({
   selector: 'app-home',
@@ -77,14 +79,41 @@ import { BusinessSettings, Service, StaffMember } from './business.models';
         </ol>
       </section>
 
-      <section class="card mt-8 flex items-start gap-4 border-dashed p-5">
-        <ng-icon name="heroCalendarDays" size="24" class="shrink-0 text-accent" />
-        <div>
-          <h2 class="font-semibold">Próximamente: reservas y agenda</h2>
-          <p class="mt-1 text-sm text-muted">
-            Con los horarios de tu equipo listos, en la siguiente versión tus clientes podrán reservar desde tu enlace.
+      <section class="mt-10" aria-labelledby="upcoming-title">
+        <h2 id="upcoming-title" class="flex items-center gap-2 text-lg font-bold">
+          <ng-icon name="heroCalendarDays" size="20" class="text-accent" /> Próximas citas
+        </h2>
+        @if (upcoming.isLoading() && upcoming.value().length === 0) {
+          <div class="card mt-4 h-28 animate-pulse bg-surface-2"></div>
+        } @else if (upcoming.value().length === 0) {
+          <p class="card mt-4 border-dashed p-6 text-center text-sm text-muted">
+            Aún no tienes citas. Cuando alguien reserve desde tu enlace, aparecerá aquí.
           </p>
-        </div>
+        } @else {
+          <ul class="card mt-4 divide-y divide-line">
+            @for (appt of upcoming.value(); track appt.id) {
+              <li class="flex items-center gap-4 p-4">
+                <div class="w-20 shrink-0 text-center">
+                  <p class="text-xs font-semibold text-muted capitalize">{{ dayLabel(appt.startsAt) }}</p>
+                  <p class="text-lg font-extrabold tabular-nums">{{ timeLabel(appt.startsAt) }}</p>
+                </div>
+                <span class="h-10 w-1 shrink-0 rounded-full" [style.background-color]="appt.staffColor" aria-hidden="true"></span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-semibold">{{ appt.customerName }} · {{ appt.serviceName }}</p>
+                  <p class="truncate text-sm text-muted">
+                    Con {{ appt.staffName }} ·
+                    <a [href]="'https://wa.me/' + whatsApp(appt.customerPhone)" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">
+                      {{ appt.customerPhone }}<span class="sr-only"> (WhatsApp, se abre en otra pestaña)</span>
+                    </a>
+                  </p>
+                  @if (appt.customerNote) {
+                    <p class="mt-1 truncate text-xs text-faint" [title]="appt.customerNote">"{{ appt.customerNote }}"</p>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
       </section>
     </div>
   `,
@@ -96,6 +125,27 @@ export class Home {
   private readonly services = httpResource<Service[]>(() => `${API_BASE}/services`);
   private readonly business = httpResource<BusinessSettings>(() => `${API_BASE}/business`);
   private readonly staff = httpResource<StaffMember[]>(() => `${API_BASE}/staff`);
+  protected readonly upcoming = httpResource<UpcomingAppointment[]>(() => `${API_BASE}/appointments/upcoming?limit=10`, { defaultValue: [] });
+
+  /** "hoy", "mañana" o "lun 5 oct". */
+  protected dayLabel(startsAt: string): string {
+    const date = parseLocal(startsAt);
+    const today = new Date();
+    const diff = Math.round(
+      (new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() -
+        new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
+        86_400_000,
+    );
+    if (diff === 0) return 'hoy';
+    if (diff === 1) return 'mañana';
+    return new Intl.DateTimeFormat('es-CO', { weekday: 'short', day: 'numeric', month: 'short' }).format(date).replace(/\./g, '');
+  }
+
+  protected readonly whatsApp = whatsAppNumber;
+
+  protected timeLabel(startsAt: string): string {
+    return formatTime(startsAt.slice(11, 16));
+  }
 
   protected readonly copied = signal(false);
   protected readonly firstName = computed(() => this.auth.user()?.fullName.split(' ')[0] ?? '');

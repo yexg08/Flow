@@ -45,26 +45,33 @@
         } @else {
           <ul class="mt-4 space-y-3">
             @for (service of business.services; track service.id) {
-              <li class="card flex items-start justify-between gap-4 p-5">
+              <li class="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
                   <h3 class="font-semibold">{{ service.name }}</h3>
                   @if (service.description) {
                     <p class="mt-1 text-sm text-muted">{{ service.description }}</p>
                   }
-                  <p class="mt-2 inline-flex items-center gap-1 text-sm text-muted">
-                    <ng-icon name="heroClock" size="15" /> {{ formatDuration(service.durationMinutes) }}
+                  <p class="mt-2 flex items-center gap-3 text-sm text-muted">
+                    <span class="inline-flex items-center gap-1"><ng-icon name="heroClock" size="15" /> {{ formatDuration(service.durationMinutes) }}</span>
+                    <span class="font-bold text-ink">{{ formatPrice(service.price, business.currency) }}</span>
                   </p>
                 </div>
-                <p class="shrink-0 font-bold">{{ formatPrice(service.price, business.currency) }}</p>
+                @if (bookable().has(service.id)) {
+                  <a
+                    [routerLink]="['reservar', service.id]"
+                    class="btn shrink-0"
+                    [style.background-color]="accent()"
+                    [style.color]="accentText()"
+                    [attr.aria-label]="'Reservar ' + service.name"
+                  >
+                    <ng-icon name="heroCalendarDays" size="17" /> Reservar
+                  </a>
+                }
               </li>
             }
           </ul>
         }
 
-        <div class="card mt-6 flex items-start gap-3 border-dashed p-5 text-sm text-muted">
-          <ng-icon name="heroCalendarDays" size="20" class="shrink-0" [style.color]="accent()" />
-          <p>Muy pronto podrás reservar tu cita directamente aquí. Mientras tanto, escríbele al negocio{{ whatsAppUrl() ? ' por WhatsApp' : '' }}.</p>
-        </div>
       </main>
 
       <footer class="mt-12 flex justify-center">

@@ -9,23 +9,7 @@ import { formatDuration, formatPrice, readableTextOn } from '../../shared/format
 import { Logo } from '../../shared/logo';
 import { ThemeToggle } from '../../shared/theme-toggle';
 import { NotFound } from '../not-found';
-
-interface PublicService {
-  id: string;
-  name: string;
-  description: string | null;
-  durationMinutes: number;
-  price: number;
-}
-
-interface PublicBusinessPage {
-  name: string;
-  slug: string;
-  accentColor: string;
-  currency: string;
-  whatsApp: string | null;
-  services: PublicService[];
-}
+import { PublicBusinessPage } from './public.models';
 
 /** Página pública de un negocio: flow.app/n/{slug}. Sin sesión. */
 @Component({
@@ -49,6 +33,11 @@ export class PublicBusiness {
     return `https://wa.me/${this.page.value().whatsApp}?text=${text}`;
   });
   protected readonly initial = computed(() => (this.page.hasValue() ? this.page.value().name.charAt(0).toUpperCase() : ''));
+
+  /** Servicios que alguien del equipo atiende en línea (los demás solo se muestran). */
+  protected readonly bookable = computed(() =>
+    new Set(this.page.hasValue() ? this.page.value().staff.flatMap((s) => s.serviceIds) : []),
+  );
 
   protected readonly formatDuration = formatDuration;
   protected readonly formatPrice = formatPrice;

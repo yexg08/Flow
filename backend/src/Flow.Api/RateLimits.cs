@@ -9,11 +9,15 @@ public static class RateLimits
     public const string SlugCheck = "slug-check";
     public const string Public = "public";
 
+    /// <summary>Reservar, reprogramar o cancelar desde la página pública.</summary>
+    public const string Booking = "booking";
+
     public static IServiceCollection AddFlowRateLimits(this IServiceCollection services, IConfiguration config)
     {
         var auth = config.GetValue("RateLimiting:AuthPerMinute", 10);
         var slug = config.GetValue("RateLimiting:SlugCheckPerMinute", 60);
         var publicPages = config.GetValue("RateLimiting:PublicPerMinute", 120);
+        var booking = config.GetValue("RateLimiting:BookingPerMinute", 10);
 
         return services.AddRateLimiter(options =>
         {
@@ -21,6 +25,7 @@ public static class RateLimits
             options.AddPolicy(Auth, context => PerIp(context, auth));
             options.AddPolicy(SlugCheck, context => PerIp(context, slug));
             options.AddPolicy(Public, context => PerIp(context, publicPages));
+            options.AddPolicy(Booking, context => PerIp(context, booking));
         });
     }
 

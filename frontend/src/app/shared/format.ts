@@ -22,6 +22,15 @@ export function formatDate(iso: string | null): string {
 }
 
 /**
+ * Número para un enlace wa.me, que exige indicativo. Un celular colombiano escrito sin indicativo (10 dígitos que
+ * empiezan por 3) se completa con el 57; cualquier otro número se deja tal cual.
+ */
+export function whatsAppNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return /^3\d{9}$/.test(digits) ? `57${digits}` : digits;
+}
+
+/**
  * Color de texto legible (blanco o casi negro) sobre un color de fondo que elige el negocio:
  * se queda con el que dé más contraste según WCAG.
  */

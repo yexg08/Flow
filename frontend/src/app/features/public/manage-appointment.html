@@ -1,0 +1,129 @@
+<div class="mx-auto max-w-xl px-4 pt-6 pb-16">
+  <header class="flex items-center justify-between">
+    <a routerLink="/" aria-label="Flow"><app-logo [size]="26" /></a>
+    <app-theme-toggle />
+  </header>
+
+  @if (appointment.isLoading() && !appointment.hasValue()) {
+    <div class="mt-8 h-80 animate-pulse rounded-2xl bg-surface-2" aria-label="Cargando tu cita"></div>
+  } @else if (appointment.error()) {
+    <div class="card mt-8 p-8 text-center">
+      <h1 class="text-xl font-bold">No encontramos esta cita</h1>
+      <p class="mt-2 text-sm text-muted">Revisa que el enlace esté completo. Si el problema sigue, escríbele al negocio.</p>
+    </div>
+  } @else if (appointment.hasValue()) {
+    @let a = appointment.value();
+    @let w = when()!;
+
+    @if (nueva() && a.status === 'Confirmed') {
+      <div class="card mt-8 flex items-start gap-3 border-success/40 p-5" role="status">
+        <ng-icon name="heroCheckCircle" size="26" class="shrink-0 text-success" />
+        <div>
+          <h1 class="text-lg font-bold">¡Listo, {{ a.customerName.split(' ')[0] }}! Tu cita quedó reservada.</h1>
+          <p class="mt-1 text-sm text-muted">
+            <strong class="text-ink">Guarda este enlace:</strong> con él puedes ver, reprogramar o cancelar tu cita.
+          </p>
+          <button type="button" class="btn-secondary mt-3" (click)="copyLink()">
+            <ng-icon [name]="copied() ? 'heroCheck' : 'heroClipboardDocument'" size="17" />
+            {{ copied() ? 'Enlace copiado' : 'Copiar enlace' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <section class="card mt-6 overflow-hidden" aria-labelledby="appt-title">
+      <div class="h-2" [style.background-color]="accent()" aria-hidden="true"></div>
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-sm text-muted">{{ a.businessName }}</p>
+            <h2 id="appt-title" class="text-2xl font-extrabold tracking-tight">{{ a.serviceName }}</h2>
+          </div>
+          @switch (a.status) {
+            @case ('Confirmed') {
+              <span class="shrink-0 rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success">Confirmada</span>
+            }
+            @case ('Cancelled') {
+              <span class="shrink-0 rounded-full bg-danger/15 px-3 py-1 text-xs font-semibold text-danger">Cancelada</span>
+            }
+            @case ('Completed') {
+              <span class="shrink-0 rounded-full bg-surface-2 px-3 py-1 text-xs font-semibold text-muted">Atendida</span>
+            }
+            @default {
+              <span class="shrink-0 rounded-full bg-surface-2 px-3 py-1 text-xs font-semibold text-muted">No asistió</span>
+            }
+          }
+        </div>
+
+        <dl class="mt-6 space-y-4 text-sm">
+          <div class="flex items-start gap-3">
+            <dt class="sr-only">Fecha</dt>
+            <ng-icon name="heroCalendarDays" size="20" class="shrink-0 text-muted" />
+            <dd class="font-semibold first-letter:uppercase" [class.line-through]="a.status === 'Cancelled'">{{ w.day }}</dd>
+          </div>
+          <div class="flex items-start gap-3">
+            <dt class="sr-only">Hora</dt>
+            <ng-icon name="heroClock" size="20" class="shrink-0 text-muted" />
+            <dd [class.line-through]="a.status === 'Cancelled'">{{ w.time }} <span class="text-muted">({{ formatDuration(a.durationMinutes) }})</span></dd>
+          </div>
+          <div class="flex items-center gap-3">
+            <dt class="sr-only">Te atiende</dt>
+            <span class="ml-1 size-3 shrink-0 rounded-full" [style.background-color]="a.staffColor" aria-hidden="true"></span>
+            <dd class="ml-1">Te atiende <strong>{{ a.staffName }}</strong></dd>
+          </div>
+          <div class="flex items-center justify-between border-t border-line pt-4">
+            <dt class="text-muted">Valor</dt>
+            <dd class="font-bold">{{ formatPrice(a.price, a.currency) }}</dd>
+          </div>
+        </dl>
+
+        @if (a.canChange && !rescheduling()) {
+          <div class="mt-6 grid gap-2 sm:grid-cols-2">
+            <button type="button" class="btn-secondary" (click)="rescheduling.set(true)" [disabled]="busy()">
+              <ng-icon name="heroArrowPath" size="17" /> Reprogramar
+            </button>
+            <button type="button" class="btn-ghost hover:text-danger" (click)="cancel()" [disabled]="busy()">
+              <ng-icon name="heroXCircle" size="18" /> Cancelar cita
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+
+    @if (rescheduling()) {
+      <section class="card mt-6 p-6" aria-labelledby="reschedule-title">
+        <h2 id="reschedule-title" class="font-bold">Elige el nuevo horario</h2>
+        <p class="mt-1 text-sm text-muted">Con {{ a.staffName }}, para el mismo servicio.</p>
+        <div class="mt-4">
+          <app-day-strip [days]="days" [value]="newDate()" [accent]="accent()" (pick)="pickDate($event)" />
+        </div>
+        <div class="mt-4">
+          <app-slot-grid [slots]="slots()" [value]="newTime()" [loading]="availability.isLoading()" [accent]="accent()" (pick)="newTime.set($event)" />
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <button type="button" class="btn-secondary" (click)="rescheduling.set(false)">Volver</button>
+          <button
+            type="button"
+            class="btn"
+            [style.background-color]="accent()"
+            [style.color]="accentText()"
+            [disabled]="!newTime() || busy()"
+            (click)="reschedule()"
+          >
+            {{ busy() ? 'Guardando…' : 'Cambiar a esta hora' }}
+          </button>
+        </div>
+      </section>
+    }
+
+    <div class="mt-6 flex flex-wrap justify-center gap-2">
+      @if (whatsAppUrl(); as url) {
+        <a [href]="url" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+          <ng-icon name="heroChatBubbleLeftRight" size="18" /> Escribir al negocio
+          <span class="sr-only">(se abre en otra pestaña)</span>
+        </a>
+      }
+      <a [routerLink]="['/n', a.businessSlug]" class="btn-ghost">Ver página del negocio</a>
+    </div>
+  }
+</div>

@@ -72,6 +72,8 @@ public class CatalogService(IAppDbContext db) : ICatalogService
     public async Task DeleteAsync(Guid id, CancellationToken ct)
     {
         var service = await FindAsync(id, ct);
+        if (await db.Appointments.AnyAsync(a => a.ServiceId == id, ct))
+            throw new BusinessRuleException("Este servicio tiene citas. En vez de borrarlo, edítalo y ocúltalo de tu página.");
         db.Services.Remove(service);
         await db.SaveChangesAsync(ct);
     }

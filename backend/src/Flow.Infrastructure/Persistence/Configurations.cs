@@ -85,6 +85,46 @@ public class TimeOffConfiguration : IEntityTypeConfiguration<TimeOff>
     }
 }
 
+public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
+{
+    public void Configure(EntityTypeBuilder<Customer> b)
+    {
+        b.ToTable("customers");
+        b.Property(c => c.Name).HasMaxLength(80).IsRequired();
+        b.Property(c => c.Phone).HasMaxLength(15).IsRequired();
+        b.Property(c => c.Email).HasMaxLength(256);
+        b.HasIndex(c => new { c.TenantId, c.Phone }).IsUnique();
+        b.HasOne<Tenant>().WithMany().HasForeignKey(c => c.TenantId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+/// <summary>
+/// La restricción que impide citas cruzadas (EXCLUDE USING gist) no se puede expresar con EF: se crea con SQL en la
+/// migración Booking. Se llama ex_appointments_no_overlap.
+/// </summary>
+public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
+{
+    public const string NoOverlapConstraint = "ex_appointments_no_overlap";
+
+    public void Configure(EntityTypeBuilder<Appointment> b)
+    {
+        b.ToTable("appointments", t => t.HasCheckConstraint("ck_appointments_range", "\"EndsAtUtc\" > \"StartsAtUtc\""));
+        b.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(a => a.Price).HasPrecision(14, 2);
+        b.Property(a => a.CustomerNote).HasMaxLength(300);
+        b.Property(a => a.ManageTokenHash).HasMaxLength(64).IsRequired();
+        b.HasIndex(a => a.ManageTokenHash).IsUnique();
+        b.HasIndex(a => new { a.TenantId, a.StartsAtUtc });
+        b.HasIndex(a => new { a.StaffMemberId, a.StartsAtUtc });
+        b.HasIndex(a => a.CustomerId);
+        b.HasOne<Tenant>().WithMany().HasForeignKey(a => a.TenantId).OnDelete(DeleteBehavior.Restrict);
+        // Restrict: un servicio o una persona con citas no se borra (se desactiva), para no perder el historial.
+        b.HasOne<BookableService>().WithMany().HasForeignKey(a => a.ServiceId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<StaffMember>().WithMany().HasForeignKey(a => a.StaffMemberId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<Customer>().WithMany().HasForeignKey(a => a.CustomerId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 {
     public void Configure(EntityTypeBuilder<RefreshToken> b)

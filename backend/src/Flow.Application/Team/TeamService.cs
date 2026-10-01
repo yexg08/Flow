@@ -91,6 +91,8 @@ public class TeamService(IAppDbContext db) : ITeamService
     public async Task DeleteAsync(Guid id, CancellationToken ct)
     {
         var staff = await FindAsync(id, ct);
+        if (await db.Appointments.AnyAsync(a => a.StaffMemberId == id, ct))
+            throw new BusinessRuleException("Esta persona tiene citas. En vez de borrarla, edítala y marca que no recibe reservas.");
         db.Staff.Remove(staff);
         await db.SaveChangesAsync(ct);
     }
