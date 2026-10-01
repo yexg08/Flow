@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+
+/* Modo oscuro por clase (.dark en <html>), que el script de index.html pone según la preferencia guardada o la del sistema. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Tokens de Flow. Cada color tiene versión clara y oscura con light-dark(): el navegador elige según color-scheme.
+ * Contrastes verificados con la fórmula de luminancia de WCAG (todos >= 4.5:1 sobre bg, surface y surface-2).
+ */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: light-dark(#f8f7fc, #0c0a12);
+  --color-surface: light-dark(#ffffff, #14111d);
+  --color-surface-2: light-dark(#f2f0f8, #1c1828);
+  --color-line: light-dark(#e3e0ec, #2c2740);
+  --color-ink: light-dark(#16131f, #f5f3fb);
+  --color-muted: light-dark(#5b5670, #a7a1bb);
+  --color-faint: light-dark(#6e6884, #8b85a1);
+  --color-accent: light-dark(#6d28d9, #c4b5fd);
+  --color-danger: light-dark(#b91c1c, #fca5a5);
+  --color-success: light-dark(#166534, #86efac);
+
+  /* Degradado de marca: texto blanco encima >= 4.6:1 en cada parada. */
+  --color-brand-1: #7c3aed;
+  --color-brand-2: #c026d3;
+  --color-brand-3: #db2777;
+}
+
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-bg font-sans text-ink antialiased;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@utility bg-brand {
+  background-image: linear-gradient(135deg, var(--color-brand-1), var(--color-brand-2) 55%, var(--color-brand-3));
+}
+
+@utility text-brand {
+  /* Más oscuro en modo claro para que el texto conserve contraste sobre fondo blanco. */
+  background-image: linear-gradient(
+    135deg,
+    light-dark(#6d28d9, #a78bfa),
+    light-dark(#a21caf, #e879f9) 55%,
+    light-dark(#be185d, #f472b6)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@utility btn-primary {
+  @apply btn bg-brand text-white shadow-lg shadow-fuchsia-900/20 hover:brightness-110;
+}
+
+@utility btn-secondary {
+  @apply btn border border-line bg-surface text-ink hover:bg-surface-2;
+}
+
+@utility btn-ghost {
+  @apply btn text-muted hover:bg-surface-2 hover:text-ink;
+}
+
+@utility btn-danger {
+  @apply btn bg-red-700 text-white hover:bg-red-800;
+}
+
+@utility field-label {
+  @apply mb-1.5 block text-sm font-medium text-ink;
+}
+
+@utility field-input {
+  @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink transition placeholder:text-faint focus:border-accent focus:outline-none aria-invalid:border-danger;
+}
+
+@utility field-error {
+  @apply mt-1.5 text-xs font-medium text-danger;
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-surface;
+}

@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Frontend (además del .gitignore de frontend/)
+node_modules/
+dist/
+.angular/
+
+# Editores y sistema
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secretos locales (por si acaso: los secretos van en dotnet user-secrets)
+.env
+*.env.local

@@ -1,0 +1,77 @@
+@if (page.isLoading() && !page.hasValue()) {
+  <div class="mx-auto max-w-2xl px-4 py-16" aria-label="Cargando">
+    <div class="h-24 animate-pulse rounded-2xl bg-surface-2"></div>
+    <div class="mt-6 h-64 animate-pulse rounded-2xl bg-surface-2"></div>
+  </div>
+} @else if (page.error()) {
+  <app-not-found />
+} @else if (page.hasValue()) {
+  @let business = page.value();
+  <div class="min-h-dvh">
+    <!-- Franja superior con el color del negocio -->
+    <div class="h-28 sm:h-36" [style.background]="'linear-gradient(135deg, ' + accent() + ', ' + accent() + '99)'" aria-hidden="true"></div>
+
+    <div class="mx-auto -mt-14 max-w-2xl px-4 pb-16">
+      <header class="card flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-4">
+          <div
+            class="flex size-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-extrabold shadow-lg"
+            [style.background-color]="accent()"
+            [style.color]="accentText()"
+            aria-hidden="true"
+          >
+            {{ initial() }}
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-2xl font-extrabold tracking-tight">{{ business.name }}</h1>
+            <p class="text-sm text-muted">Reserva en línea</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
+          <app-theme-toggle />
+          @if (whatsAppUrl(); as url) {
+            <a [href]="url" target="_blank" rel="noopener" class="btn" [style.background-color]="accent()" [style.color]="accentText()">
+              <ng-icon name="heroChatBubbleLeftRight" size="18" /> WhatsApp
+              <span class="sr-only">(se abre en otra pestaña)</span>
+            </a>
+          }
+        </div>
+      </header>
+
+      <main class="mt-8">
+        <h2 class="text-lg font-bold">Servicios</h2>
+        @if (business.services.length === 0) {
+          <p class="card mt-4 p-6 text-center text-muted">Este negocio aún no ha publicado sus servicios.</p>
+        } @else {
+          <ul class="mt-4 space-y-3">
+            @for (service of business.services; track service.id) {
+              <li class="card flex items-start justify-between gap-4 p-5">
+                <div class="min-w-0">
+                  <h3 class="font-semibold">{{ service.name }}</h3>
+                  @if (service.description) {
+                    <p class="mt-1 text-sm text-muted">{{ service.description }}</p>
+                  }
+                  <p class="mt-2 inline-flex items-center gap-1 text-sm text-muted">
+                    <ng-icon name="heroClock" size="15" /> {{ formatDuration(service.durationMinutes) }}
+                  </p>
+                </div>
+                <p class="shrink-0 font-bold">{{ formatPrice(service.price, business.currency) }}</p>
+              </li>
+            }
+          </ul>
+        }
+
+        <div class="card mt-6 flex items-start gap-3 border-dashed p-5 text-sm text-muted">
+          <ng-icon name="heroCalendarDays" size="20" class="shrink-0" [style.color]="accent()" />
+          <p>Muy pronto podrás reservar tu cita directamente aquí. Mientras tanto, escríbele al negocio{{ whatsAppUrl() ? ' por WhatsApp' : '' }}.</p>
+        </div>
+      </main>
+
+      <footer class="mt-12 flex justify-center">
+        <a routerLink="/" class="inline-flex items-center gap-2 text-xs text-faint hover:text-muted">
+          Hecho con <app-logo [size]="16" />
+        </a>
+      </footer>
+    </div>
+  </div>
+}

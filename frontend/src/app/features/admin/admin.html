@@ -1,0 +1,107 @@
+<header class="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+    <div class="flex items-center gap-3">
+      <a routerLink="/admin" aria-label="Panel de la plataforma"><app-logo /></a>
+      <span class="rounded-full border border-line bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-muted">Plataforma</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <app-theme-toggle />
+      <button type="button" class="btn-ghost" (click)="auth.logout()">
+        <ng-icon name="heroArrowRightOnRectangle" size="18" />
+        <span class="hidden sm:inline">Cerrar sesión</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+  <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Negocios en Flow</h1>
+  <p class="mt-1 text-muted">Todos los negocios registrados. Desde aquí puedes suspender o reactivar uno.</p>
+
+  <!-- Indicadores -->
+  <section class="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Indicadores">
+    @for (tile of tiles(); track tile.label) {
+      <div class="card p-4 sm:p-5">
+        <div class="flex items-center justify-between text-muted">
+          <p class="text-sm">{{ tile.label }}</p>
+          <ng-icon [name]="tile.icon" size="18" class="text-accent" />
+        </div>
+        <p class="mt-2 text-3xl font-extrabold tabular-nums">{{ tile.value ?? '—' }}</p>
+      </div>
+    }
+  </section>
+
+  <!-- Buscador -->
+  <div class="relative mt-8 max-w-md">
+    <ng-icon name="heroMagnifyingGlass" size="18" class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-faint" />
+    <label for="search" class="sr-only">Buscar negocio por nombre o enlace</label>
+    <input id="search" type="search" [formControl]="search" placeholder="Buscar por nombre o enlace" class="field-input pl-10" />
+  </div>
+
+  <!-- Listado -->
+  <section class="card mt-4 overflow-hidden" aria-label="Negocios">
+    @if (tenants.isLoading() && tenants.value().length === 0) {
+      <div class="h-48 animate-pulse bg-surface-2"></div>
+    } @else if (tenants.error()) {
+      <div class="p-8 text-center">
+        <p class="font-semibold">No se pudo cargar el listado.</p>
+        <button type="button" class="btn-secondary mt-4" (click)="tenants.reload()">Reintentar</button>
+      </div>
+    } @else if (tenants.value().length === 0) {
+      <p class="p-8 text-center text-muted">{{ search.value ? 'Ningún negocio coincide con la búsqueda.' : 'Todavía no hay negocios registrados.' }}</p>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[52rem] text-left text-sm">
+          <thead class="border-b border-line bg-surface-2 text-xs tracking-wider text-muted uppercase">
+            <tr>
+              <th scope="col" class="px-5 py-3 font-semibold">Negocio</th>
+              <th scope="col" class="px-5 py-3 font-semibold">Dueño</th>
+              <th scope="col" class="px-5 py-3 font-semibold">Registro</th>
+              <th scope="col" class="px-5 py-3 text-center font-semibold">Servicios</th>
+              <th scope="col" class="px-5 py-3 font-semibold">Último ingreso</th>
+              <th scope="col" class="px-5 py-3 font-semibold">Estado</th>
+              <th scope="col" class="px-5 py-3"><span class="sr-only">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line">
+            @for (t of tenants.value(); track t.id) {
+              <tr [class.opacity-70]="!t.isActive">
+                <td class="px-5 py-3.5">
+                  <p class="font-semibold">{{ t.name }}</p>
+                  <a [href]="'/n/' + t.slug" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs text-accent hover:underline">
+                    /n/{{ t.slug }} <ng-icon name="heroArrowTopRightOnSquare" size="12" />
+                    <span class="sr-only">(se abre en otra pestaña)</span>
+                  </a>
+                </td>
+                <td class="px-5 py-3.5">
+                  <p>{{ t.ownerName }}</p>
+                  <p class="text-xs text-muted">{{ t.ownerEmail }}</p>
+                </td>
+                <td class="px-5 py-3.5 text-muted">{{ formatDate(t.createdAt) }}</td>
+                <td class="px-5 py-3.5 text-center tabular-nums">{{ t.serviceCount }}</td>
+                <td class="px-5 py-3.5 text-muted">{{ formatDate(t.lastLoginAt) }}</td>
+                <td class="px-5 py-3.5">
+                  @if (t.isActive) {
+                    <span class="rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">Activo</span>
+                  } @else {
+                    <span class="rounded-full bg-danger/15 px-2.5 py-1 text-xs font-semibold text-danger">Suspendido</span>
+                  }
+                </td>
+                <td class="px-5 py-3.5 text-right">
+                  <button
+                    type="button"
+                    [class]="t.isActive ? 'btn-ghost hover:text-danger' : 'btn-secondary'"
+                    [disabled]="busyId() === t.id"
+                    (click)="toggle(t)"
+                  >
+                    {{ t.isActive ? 'Suspender' : 'Reactivar' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</main>

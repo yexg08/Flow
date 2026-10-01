@@ -1,0 +1,71 @@
+<div class="mx-auto max-w-4xl">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Servicios</h1>
+      <p class="mt-1 text-muted">Lo que ofreces y tus clientes pueden reservar.</p>
+    </div>
+    @if (auth.isOwner()) {
+      <button type="button" class="btn-primary" (click)="open()">
+        <ng-icon name="heroPlus" size="18" /> Nuevo servicio
+      </button>
+    }
+  </div>
+
+  @if (services.isLoading() && services.value().length === 0) {
+    <ul class="mt-8 space-y-3" aria-label="Cargando servicios">
+      @for (i of [1, 2, 3]; track i) {
+        <li class="card h-20 animate-pulse bg-surface-2"></li>
+      }
+    </ul>
+  } @else if (services.error()) {
+    <div class="card mt-8 p-8 text-center">
+      <p class="font-semibold">No se pudieron cargar tus servicios.</p>
+      <button type="button" class="btn-secondary mt-4" (click)="services.reload()">Reintentar</button>
+    </div>
+  } @else if (services.value().length === 0) {
+    <div class="card mt-8 flex flex-col items-center px-6 py-14 text-center">
+      <div class="flex size-14 items-center justify-center rounded-2xl bg-violet-500/15 text-accent">
+        <ng-icon name="heroSquares2x2" size="28" />
+      </div>
+      <h2 class="mt-5 text-lg font-bold">Aún no tienes servicios</h2>
+      <p class="mt-1 max-w-sm text-sm text-muted">Agrega lo que ofreces, con su duración y precio. Aparecerán en tu página pública.</p>
+      @if (auth.isOwner()) {
+        <button type="button" class="btn-primary mt-6" (click)="open()"><ng-icon name="heroPlus" size="18" /> Agregar el primero</button>
+      }
+    </div>
+  } @else {
+    <ul class="mt-8 space-y-3">
+      @for (service of services.value(); track service.id) {
+        <li class="card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5" [class.opacity-70]="!service.isActive">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-semibold">{{ service.name }}</h2>
+              @if (!service.isActive) {
+                <span class="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-xs text-muted">
+                  <ng-icon name="heroEyeSlash" size="12" /> Oculto
+                </span>
+              }
+            </div>
+            @if (service.description) {
+              <p class="mt-1 line-clamp-2 text-sm text-muted">{{ service.description }}</p>
+            }
+            <p class="mt-2 flex items-center gap-3 text-sm text-muted">
+              <span class="inline-flex items-center gap-1"><ng-icon name="heroClock" size="15" /> {{ formatDuration(service.durationMinutes) }}</span>
+              <span class="font-semibold text-ink">{{ formatPrice(service.price) }}</span>
+            </p>
+          </div>
+          @if (auth.isOwner()) {
+            <div class="flex gap-2 sm:shrink-0">
+              <button type="button" class="btn-secondary" (click)="open(service)" [attr.aria-label]="'Editar ' + service.name">
+                <ng-icon name="heroPencilSquare" size="17" /> Editar
+              </button>
+              <button type="button" class="btn-ghost px-2.5 hover:text-danger" (click)="remove(service)" [attr.aria-label]="'Eliminar ' + service.name">
+                <ng-icon name="heroTrash" size="18" />
+              </button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>

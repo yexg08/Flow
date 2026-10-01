@@ -1,0 +1,84 @@
+<div class="min-h-dvh lg:grid lg:grid-cols-[17rem_1fr]">
+  <!-- Barra superior (celular) -->
+  <header class="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/90 px-4 py-3 backdrop-blur lg:hidden">
+    <a routerLink="/app" aria-label="Inicio del panel"><app-logo [size]="28" /></a>
+    <button
+      type="button"
+      class="btn-ghost px-2.5"
+      (click)="menuOpen.set(!menuOpen())"
+      [attr.aria-expanded]="menuOpen()"
+      aria-controls="sidebar"
+      [attr.aria-label]="menuOpen() ? 'Cerrar menú' : 'Abrir menú'"
+    >
+      <ng-icon [name]="menuOpen() ? 'heroXMark' : 'heroBars3'" size="22" />
+    </button>
+  </header>
+
+  @if (menuOpen()) {
+    <div class="fixed inset-0 z-30 bg-black/50 lg:hidden" (click)="menuOpen.set(false)" aria-hidden="true"></div>
+  }
+
+  <!-- Menú lateral -->
+  <aside
+    id="sidebar"
+    class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-dvh lg:w-auto lg:translate-x-0"
+    [class.-translate-x-full]="!menuOpen()"
+  >
+    <div class="hidden px-5 pt-6 lg:block">
+      <a routerLink="/app" aria-label="Inicio del panel"><app-logo /></a>
+    </div>
+
+    @if (auth.tenant(); as tenant) {
+      <div class="mx-4 mt-6 rounded-xl border border-line bg-surface-2 p-3.5">
+        <p class="truncate text-sm font-bold" [title]="tenant.name">{{ tenant.name }}</p>
+        <a
+          [href]="'/n/' + tenant.slug"
+          target="_blank"
+          rel="noopener"
+          class="mt-1 inline-flex max-w-full items-center gap-1 text-xs font-medium text-accent hover:underline"
+        >
+          <span class="truncate">Ver mi página</span>
+          <ng-icon name="heroArrowTopRightOnSquare" size="13" class="shrink-0" />
+          <span class="sr-only">(se abre en otra pestaña)</span>
+        </a>
+      </div>
+    }
+
+    <nav class="mt-6 flex-1 space-y-1 px-3" aria-label="Panel del negocio">
+      @for (item of nav(); track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="!bg-violet-500/15 !text-ink font-semibold"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+          #rla="routerLinkActive"
+          [attr.aria-current]="rla.isActive ? 'page' : null"
+          class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-surface-2 hover:text-ink"
+        >
+          <ng-icon [name]="item.icon" size="20" [class.text-accent]="rla.isActive" />
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="border-t border-line p-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-brand flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" aria-hidden="true">
+          {{ auth.user()?.fullName?.charAt(0) ?? '?' }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-semibold">{{ auth.user()?.fullName }}</p>
+          <p class="text-xs text-faint">{{ roleLabel() }}</p>
+        </div>
+        <app-theme-toggle />
+      </div>
+      <button type="button" class="btn-ghost mt-3 w-full justify-start px-3" (click)="auth.logout()">
+        <ng-icon name="heroArrowRightOnRectangle" size="18" />
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <main class="min-w-0 px-4 py-6 sm:px-8 lg:py-10">
+    <router-outlet />
+  </main>
+</div>

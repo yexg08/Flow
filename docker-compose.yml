@@ -1,0 +1,26 @@
+name: flow
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: flow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flow
+      POSTGRES_USER: flow
+      # Solo para desarrollo local. Debe coincidir con appsettings.Development.json.
+      POSTGRES_PASSWORD: flow_dev_password
+      TZ: UTC
+    ports:
+      # 5434 para no chocar con otros PostgreSQL locales (el AIS Dashboard usa el 5433).
+      - "5434:5432"
+    volumes:
+      - flow_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flow -d flow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  flow_data:

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Flow · Agenda en línea para tu negocio</title>
+    <meta name="description" content="Flow: tu negocio con su propia página de reservas, agenda y clientes en un solo lugar." />
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Flow ya tiene modo oscuro propio: evita que extensiones como Dark Reader lo alteren. -->
+    <meta name="darkreader-lock" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap" rel="stylesheet" />
+    <script>
+      // Aplica el tema antes de cargar Angular para que no parpadee: el guardado o, si no hay, el del sistema.
+      (function () {
+        var saved = null;
+        try { saved = localStorage.getItem('flow-theme'); } catch (e) {}
+        var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

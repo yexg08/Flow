@@ -1,0 +1,139 @@
+<div class="relative overflow-hidden">
+  <!-- Resplandor de fondo con los colores de la marca -->
+  <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[40rem]">
+    <div class="absolute top-[-12rem] left-1/2 h-[32rem] w-[48rem] -translate-x-1/2 rounded-full bg-violet-600/20 blur-3xl"></div>
+    <div class="absolute top-20 right-[-10rem] h-80 w-80 rounded-full bg-pink-600/15 blur-3xl"></div>
+  </div>
+
+  <a href="#contenido" class="sr-only z-50 rounded-xl bg-surface px-4 py-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4">
+    Saltar al contenido
+  </a>
+
+  <header class="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+    <a routerLink="/" aria-label="Flow, inicio"><app-logo /></a>
+    <nav class="flex items-center gap-1 sm:gap-2" aria-label="Principal">
+      <app-theme-toggle />
+      @if (auth.isAuthenticated()) {
+        <a [routerLink]="auth.homeUrl()" class="btn-primary">Ir a mi panel</a>
+      } @else {
+        <a routerLink="/login" class="btn-ghost hidden sm:inline-flex">Iniciar sesión</a>
+        <a routerLink="/registro" class="btn-primary">Crear negocio</a>
+      }
+    </nav>
+  </header>
+
+  <main id="contenido" tabindex="-1" class="focus:outline-none">
+    <!-- Hero -->
+    <section class="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-10 pb-20 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:pt-16">
+      <div>
+        <p class="inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3 py-1 text-xs font-medium text-muted">
+          <ng-icon name="heroSparkles" class="text-accent" size="14" />
+          Reservas en línea para negocios que viven de las citas
+        </p>
+        <h1 class="mt-6 text-4xl leading-[1.1] font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
+          Tu negocio, <span class="text-brand">siempre agendado.</span>
+        </h1>
+        <p class="mt-5 max-w-xl text-lg text-muted">
+          Flow le da a tu peluquería, consultorio o taller su propia página para que los clientes reserven solos, y a ti
+          una agenda ordenada en un solo lugar.
+        </p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a routerLink="/registro" class="btn-primary px-6 py-3 text-base">
+            Crea tu negocio gratis
+            <ng-icon name="heroArrowRight" size="18" />
+          </a>
+          <a routerLink="/login" class="btn-secondary px-6 py-3 text-base">Ya tengo cuenta</a>
+        </div>
+        <ul class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+          <li class="flex items-center gap-1.5"><ng-icon name="heroCheck" class="text-success" size="16" /> Sin instalar nada</li>
+          <li class="flex items-center gap-1.5"><ng-icon name="heroCheck" class="text-success" size="16" /> Tus clientes no necesitan cuenta</li>
+          <li class="flex items-center gap-1.5"><ng-icon name="heroCheck" class="text-success" size="16" /> Modo claro y oscuro</li>
+        </ul>
+      </div>
+
+      <!-- Vista previa ilustrativa de una página de reservas -->
+      <figure class="relative">
+        <div class="card relative mx-auto max-w-md p-5 shadow-2xl shadow-violet-950/30">
+          <div class="flex items-center gap-3">
+            <div class="bg-brand flex size-11 items-center justify-center rounded-xl text-lg font-bold text-white" aria-hidden="true">B</div>
+            <div>
+              <p class="font-bold">Barbería de ejemplo</p>
+              <p class="text-xs text-muted">flow.app/n/barberia-ejemplo</p>
+            </div>
+          </div>
+          <p class="mt-5 text-xs font-semibold tracking-wider text-faint uppercase">Elige un servicio</p>
+          <ul class="mt-2 space-y-2">
+            @for (service of previewServices; track service.name; let first = $first) {
+              <li
+                class="flex items-center justify-between rounded-xl border px-3.5 py-3 text-sm"
+                [class]="first ? 'border-accent bg-surface-2' : 'border-line'"
+              >
+                <span class="font-medium">{{ service.name }}</span>
+                <span class="text-muted">{{ service.meta }}</span>
+              </li>
+            }
+          </ul>
+          <p class="mt-5 text-xs font-semibold tracking-wider text-faint uppercase">Horarios libres hoy</p>
+          <div class="mt-2 grid grid-cols-3 gap-2">
+            @for (slot of previewSlots; track slot; let i = $index) {
+              <span
+                class="rounded-lg border py-2 text-center text-sm font-medium"
+                [class]="i === 2 ? 'bg-brand border-transparent text-white' : 'border-line text-muted'"
+              >
+                {{ slot }}
+              </span>
+            }
+          </div>
+        </div>
+        <figcaption class="mt-3 text-center text-xs text-faint">Así se ve la página de un negocio (ejemplo).</figcaption>
+      </figure>
+    </section>
+
+    <!-- Características -->
+    <section class="border-y border-line bg-surface/50" aria-labelledby="features-title">
+      <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <h2 id="features-title" class="text-3xl font-extrabold tracking-tight sm:text-4xl">Pensado para el día a día de tu negocio</h2>
+        <div class="mt-10 grid gap-5 md:grid-cols-3">
+          @for (feature of features; track feature.title) {
+            <article class="card p-6">
+              <div class="flex size-11 items-center justify-center rounded-xl bg-violet-500/15 text-accent">
+                <ng-icon [name]="feature.icon" size="22" />
+              </div>
+              <h3 class="mt-5 text-lg font-bold">{{ feature.title }}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-muted">{{ feature.text }}</p>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Cómo funciona -->
+    <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="steps-title">
+      <h2 id="steps-title" class="text-3xl font-extrabold tracking-tight sm:text-4xl">Empieza en tres pasos</h2>
+      <ol class="mt-10 grid gap-5 md:grid-cols-3">
+        @for (step of steps; track step.title; let i = $index) {
+          <li class="card p-6">
+            <span class="text-brand text-4xl font-extrabold">{{ i + 1 }}</span>
+            <h3 class="mt-3 text-lg font-bold">{{ step.title }}</h3>
+            <p class="mt-2 text-sm text-muted">{{ step.text }}</p>
+          </li>
+        }
+      </ol>
+
+      <div class="card relative mt-16 overflow-hidden p-8 text-center sm:p-12">
+        <div aria-hidden="true" class="bg-brand absolute inset-0 opacity-10"></div>
+        <ng-icon name="heroShieldCheck" class="relative text-accent" size="32" />
+        <h2 class="relative mt-4 text-2xl font-extrabold sm:text-3xl">¿Listo para que tus clientes reserven solos?</h2>
+        <p class="relative mx-auto mt-3 max-w-lg text-muted">Crea tu negocio y comparte tu enlace hoy mismo.</p>
+        <a routerLink="/registro" class="btn-primary relative mt-8 px-6 py-3 text-base">Crear mi negocio</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line">
+    <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-faint sm:flex-row sm:px-6">
+      <app-logo [size]="22" />
+      <p>Proyecto de portafolio · Hecho con .NET, Angular y PostgreSQL</p>
+    </div>
+  </footer>
+</div>

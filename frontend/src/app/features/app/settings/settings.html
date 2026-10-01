@@ -1,0 +1,134 @@
+<div class="mx-auto max-w-4xl">
+  <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Ajustes del negocio</h1>
+  <p class="mt-1 text-muted">Cómo se ve y cómo te encuentran tus clientes.</p>
+
+  @if (business.isLoading() && !business.hasValue()) {
+    <div class="card mt-8 h-96 animate-pulse bg-surface-2" aria-label="Cargando ajustes"></div>
+  } @else if (business.error()) {
+    <div class="card mt-8 p-8 text-center">
+      <p class="font-semibold">No se pudieron cargar los ajustes.</p>
+      <button type="button" class="btn-secondary mt-4" (click)="business.reload()">Reintentar</button>
+    </div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate class="mt-8 grid gap-6 lg:grid-cols-[1fr_18rem]">
+      <div class="space-y-6">
+        @if (error()) {
+          <p class="rounded-xl border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-sm text-danger" role="alert">{{ error() }}</p>
+        }
+
+        <section class="card space-y-5 p-6" aria-labelledby="identity-title">
+          <h2 id="identity-title" class="font-bold">Identidad</h2>
+          <div>
+            <label for="name" class="field-label">Nombre del negocio</label>
+            <input id="name" formControlName="name" class="field-input" [attr.aria-invalid]="invalid('name')" />
+            @if (invalid('name')) {
+              <p class="field-error">{{ serverErrors()['name'] ?? 'Escribe el nombre del negocio.' }}</p>
+            }
+          </div>
+
+          <div>
+            <label for="slug" class="field-label">Enlace público</label>
+            <div class="flex items-stretch overflow-hidden rounded-xl border border-line bg-surface focus-within:border-accent">
+              <span class="flex items-center border-r border-line bg-surface-2 px-3 text-sm text-muted">{{ host }}/n/</span>
+              <input
+                id="slug"
+                formControlName="slug"
+                (input)="onSlugInput()"
+                autocomplete="off"
+                spellcheck="false"
+                class="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-ink focus:outline-none"
+                [attr.aria-invalid]="invalid('slug') || slugFormatError()"
+              />
+            </div>
+            @if (serverErrors()['slug']; as message) {
+              <p class="field-error">{{ message }}</p>
+            } @else if (slugFormatError()) {
+              <p class="field-error">Usa de 3 a 40 letras minúsculas, números o guiones.</p>
+            } @else if (slugChanged()) {
+              <p class="mt-1.5 flex items-start gap-1.5 text-xs text-muted">
+                <ng-icon name="heroExclamationTriangle" size="14" class="mt-px shrink-0 text-accent" />
+                Al guardar, el enlace anterior dejará de funcionar. Actualízalo donde lo hayas compartido.
+              </p>
+            }
+          </div>
+        </section>
+
+        <section class="card space-y-5 p-6" aria-labelledby="contact-title">
+          <h2 id="contact-title" class="font-bold">Contacto y horario</h2>
+          <div>
+            <label for="whatsApp" class="field-label">WhatsApp <span class="font-normal text-faint">(opcional)</span></label>
+            <input
+              id="whatsApp"
+              formControlName="whatsApp"
+              inputmode="numeric"
+              placeholder="573001234567"
+              class="field-input"
+              aria-describedby="whatsapp-hint"
+              [attr.aria-invalid]="invalid('whatsApp')"
+            />
+            @if (invalid('whatsApp')) {
+              <p id="whatsapp-hint" class="field-error">{{ serverErrors()['whatsApp'] ?? 'Con indicativo y solo dígitos, p. ej. 573001234567.' }}</p>
+            } @else {
+              <p id="whatsapp-hint" class="mt-1.5 text-xs text-faint">Con indicativo del país y sin espacios. Aparece como botón en tu página.</p>
+            }
+          </div>
+          <div>
+            <label for="timeZone" class="field-label">Zona horaria</label>
+            <select id="timeZone" formControlName="timeZone" class="field-input">
+              @for (tz of timeZones; track tz.id) {
+                <option [value]="tz.id">{{ tz.label }}</option>
+              }
+            </select>
+          </div>
+        </section>
+
+        <section class="card p-6" aria-labelledby="color-title">
+          <h2 id="color-title" class="font-bold">Color de tu página</h2>
+          <p class="mt-1 text-sm text-muted">Se usa en los botones de tu página pública.</p>
+          <div class="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Colores sugeridos">
+            @for (preset of presets; track preset.color) {
+              <button
+                type="button"
+                role="radio"
+                class="flex size-9 cursor-pointer items-center justify-center rounded-full ring-offset-2 ring-offset-surface transition hover:scale-110"
+                [style.background-color]="preset.color"
+                [class.ring-2]="accent() === preset.color"
+                [class.ring-accent]="accent() === preset.color"
+                [attr.aria-checked]="accent() === preset.color"
+                [attr.aria-label]="preset.name"
+                [title]="preset.name"
+                (click)="pickColor(preset.color)"
+              >
+                @if (accent() === preset.color) {
+                  <ng-icon name="heroCheck" size="16" [style.color]="accentText()" />
+                }
+              </button>
+            }
+            <label class="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-line px-3 text-sm text-muted">
+              <input type="color" formControlName="accentColor" class="size-5 cursor-pointer rounded-full border-0 bg-transparent p-0" />
+              Otro
+            </label>
+          </div>
+        </section>
+
+        <div class="flex justify-end">
+          <button type="submit" class="btn-primary px-6" [disabled]="saving() || form.pristine">
+            {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Vista previa del botón con el color elegido -->
+      <aside class="lg:sticky lg:top-10 lg:self-start" aria-label="Vista previa">
+        <div class="card p-5">
+          <p class="text-xs font-semibold tracking-wider text-faint uppercase">Vista previa</p>
+          <p class="mt-3 font-bold">{{ form.controls.name.value || 'Tu negocio' }}</p>
+          <p class="text-xs text-muted">{{ host }}/n/{{ form.controls.slug.value }}</p>
+          <span class="mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold" [style.background-color]="accent()" [style.color]="accentText()">
+            Reservar cita
+          </span>
+        </div>
+      </aside>
+    </form>
+  }
+</div>
