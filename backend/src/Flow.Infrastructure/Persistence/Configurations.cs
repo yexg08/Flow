@@ -93,6 +93,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         b.Property(c => c.Name).HasMaxLength(80).IsRequired();
         b.Property(c => c.Phone).HasMaxLength(15).IsRequired();
         b.Property(c => c.Email).HasMaxLength(256);
+        b.Property(c => c.Notes).HasMaxLength(500);
         b.HasIndex(c => new { c.TenantId, c.Phone }).IsUnique();
         b.HasOne<Tenant>().WithMany().HasForeignKey(c => c.TenantId).OnDelete(DeleteBehavior.Restrict);
     }

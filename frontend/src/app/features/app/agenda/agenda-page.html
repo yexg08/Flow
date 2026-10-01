@@ -1,0 +1,187 @@
+<div class="mx-auto max-w-7xl">
+  <!-- Barra de herramientas -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-2">
+      <h1 class="sr-only">Agenda</h1>
+      <button type="button" class="btn-secondary px-3" (click)="goToday()">Hoy</button>
+      <div class="flex">
+        <button type="button" class="btn-ghost px-2" (click)="shift(-1)" [attr.aria-label]="view() === 'day' ? 'Día anterior' : 'Semana anterior'">
+          <ng-icon name="heroChevronLeft" size="20" />
+        </button>
+        <button type="button" class="btn-ghost px-2" (click)="shift(1)" [attr.aria-label]="view() === 'day' ? 'Día siguiente' : 'Semana siguiente'">
+          <ng-icon name="heroChevronRight" size="20" />
+        </button>
+      </div>
+      <p class="text-lg font-bold first-letter:uppercase sm:text-xl" aria-live="polite">{{ heading() }}</p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex rounded-xl border border-line bg-surface p-0.5" role="group" aria-label="Vista">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+          [class]="view() === 'day' ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink'"
+          [attr.aria-pressed]="view() === 'day'"
+          (click)="setView('day')"
+        >
+          Día
+        </button>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+          [class]="view() === 'week' ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink'"
+          [attr.aria-pressed]="view() === 'week'"
+          (click)="setView('week')"
+        >
+          Semana
+        </button>
+      </div>
+      @if (view() === 'week') {
+        <label class="sr-only" for="agenda-staff">Persona</label>
+        <select
+          id="agenda-staff"
+          #staffSelect
+          class="field-input w-auto py-2"
+          [value]="staffFilter() ?? ''"
+          (change)="staffFilter.set(staffSelect.value || null)"
+        >
+          <option value="">Todo el equipo</option>
+          @for (person of staffList(); track person.id) {
+            <option [value]="person.id">{{ person.name }}</option>
+          }
+        </select>
+      }
+      <button type="button" class="btn-primary" (click)="newAppointment()"><ng-icon name="heroPlus" size="18" /> Nueva cita</button>
+    </div>
+  </div>
+
+  <div class="mt-3 flex items-center justify-between text-sm text-muted">
+    <p>{{ counts().active }} cita(s){{ view() === 'day' ? ' este día' : ' esta semana' }}</p>
+    @if (counts().cancelled > 0) {
+      <label class="flex cursor-pointer items-center gap-2">
+        <input type="checkbox" class="size-4 accent-violet-600" [checked]="showCancelled()" #cancelledBox (change)="showCancelled.set(cancelledBox.checked)" />
+        Ver canceladas ({{ counts().cancelled }})
+      </label>
+    }
+  </div>
+
+  @if (agenda.error()) {
+    <div class="card mt-4 p-8 text-center">
+      <p class="font-semibold">No se pudo cargar la agenda.</p>
+      <button type="button" class="btn-secondary mt-4" (click)="agenda.reload()">Reintentar</button>
+    </div>
+  } @else if (view() === 'day' && columns().length === 0) {
+    <div class="card mt-4 p-8 text-center text-muted">Agrega a tu equipo para ver la agenda por persona.</div>
+  } @else {
+    <div class="card mt-3 overflow-hidden" [class.opacity-60]="agenda.isLoading()">
+      <div class="overflow-x-auto">
+        <div class="min-w-fit">
+          <!-- Encabezados -->
+          <div class="grid border-b border-line" [style.grid-template-columns]="gridTemplate()">
+            <div></div>
+            @for (column of columns(); track column.key) {
+              @if (view() === 'week') {
+                <button
+                  type="button"
+                  class="cursor-pointer border-l border-line px-2 py-2.5 text-center hover:bg-surface-2"
+                  (click)="openDay(column.date)"
+                  [attr.aria-label]="'Ver el día ' + column.title + ' ' + column.subtitle"
+                >
+                  <span class="block text-xs font-semibold text-muted capitalize">{{ column.title }}</span>
+                  <span
+                    class="mx-auto mt-0.5 flex size-8 items-center justify-center rounded-full text-lg font-extrabold"
+                    [class]="column.isToday ? 'bg-brand text-white' : ''"
+                  >
+                    {{ column.subtitle }}
+                  </span>
+                </button>
+              } @else {
+                <div class="flex items-center gap-2 border-l border-line px-3 py-3">
+                  <span class="size-3 shrink-0 rounded-full" [style.background-color]="column.color" aria-hidden="true"></span>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold">{{ column.title }}</p>
+                    @if (column.subtitle) {
+                      <p class="truncate text-xs text-faint">{{ column.subtitle }}</p>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          </div>
+
+          <!-- Cuerpo -->
+          <div class="grid" [style.grid-template-columns]="gridTemplate()">
+            <div class="relative" [style.height.px]="bodyHeight()" aria-hidden="true">
+              @for (label of hours().labels; track label; let i = $index) {
+                <span class="absolute right-2 -translate-y-1/2 text-[11px] text-faint tabular-nums" [style.top.px]="i * 60 * pxPerMinute" [class.hidden]="i === 0">
+                  {{ label }}
+                </span>
+              }
+            </div>
+
+            @for (column of columns(); track column.key) {
+              <div
+                class="relative cursor-copy border-l border-line"
+                [class]="column.isToday && view() === 'week' ? 'bg-violet-500/5' : ''"
+                [style.height.px]="bodyHeight()"
+                [style.background-image]="'repeating-linear-gradient(to bottom, var(--color-line) 0 1px, transparent 1px ' + 60 * pxPerMinute + 'px)'"
+                (click)="onGridClick($event, column)"
+              >
+                @for (shade of shades().get(column.key); track shade.key) {
+                  <div
+                    class="pointer-events-none absolute inset-x-0 overflow-hidden px-2 py-1 text-[11px] font-medium text-muted"
+                    [style.top.px]="shade.top"
+                    [style.height.px]="shade.height"
+                    style="background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-muted) 14%, transparent) 0 6px, transparent 6px 12px)"
+                  >
+                    {{ shade.label }}
+                  </div>
+                }
+
+                @if (column.isToday && nowTop() !== null) {
+                  <div class="pointer-events-none absolute inset-x-0 z-20 h-0.5 bg-pink-500" [style.top.px]="nowTop()" aria-hidden="true">
+                    <span class="absolute -top-1 -left-1 size-2.5 rounded-full bg-pink-500"></span>
+                  </div>
+                }
+
+                @for (block of blocks().get(column.key); track block.appointment.id) {
+                  @let a = block.appointment;
+                  <button
+                    type="button"
+                    class="absolute z-10 cursor-pointer overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left text-xs shadow-sm transition hover:z-30 hover:shadow-lg focus-visible:z-30"
+                    [class.opacity-50]="a.status === 'Cancelled'"
+                    [style]="blockStyle(a.staffColor)"
+                    [style.top.px]="block.top"
+                    [style.height.px]="block.height"
+                    [style.left]="'calc(' + block.left + '% + 2px)'"
+                    [style.width]="'calc(' + block.width + '% - 4px)'"
+                    [attr.aria-label]="time(a.startsAt) + ', ' + a.customerName + ', ' + a.serviceName + ', con ' + a.staffName"
+                    (click)="open(a, $event)"
+                  >
+                    @if (block.compact) {
+                      <p class="truncate font-semibold" [class.line-through]="a.status === 'Cancelled'">
+                        {{ time(a.startsAt) }} {{ a.customerName }}
+                      </p>
+                    } @else {
+                      <p class="flex items-center gap-1 font-semibold tabular-nums">
+                        {{ time(a.startsAt) }}–{{ time(a.endsAt) }}
+                        @if (a.status === 'Completed') {
+                          <ng-icon name="heroCheckCircle" size="13" class="text-success" />
+                        } @else if (a.status === 'NoShow') {
+                          <ng-icon name="heroNoSymbol" size="13" class="text-danger" />
+                        }
+                      </p>
+                      <p class="truncate font-semibold" [class.line-through]="a.status === 'Cancelled'">{{ a.customerName }}</p>
+                      <p class="truncate text-muted">{{ a.serviceName }}{{ view() === 'week' ? ' · ' + a.staffName : '' }}</p>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="mt-2 text-xs text-faint">Haz clic en un espacio libre para agendar a esa hora.</p>
+  }
+</div>

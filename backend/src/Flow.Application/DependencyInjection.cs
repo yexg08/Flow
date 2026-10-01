@@ -1,4 +1,6 @@
+using Flow.Application.Agenda;
 using Flow.Application.Booking;
+using Flow.Application.Customers;
 using Flow.Application.Business;
 using Flow.Application.Catalog;
 using Flow.Application.Public;
@@ -21,6 +23,8 @@ public static class DependencyInjection
         services.AddScoped<AvailabilityEngine>();
         services.AddScoped<IPublicBookingService, PublicBookingService>();
         services.AddScoped<IAppointmentsService, AppointmentsService>();
+        services.AddScoped<IAgendaService, AgendaService>();
+        services.AddScoped<ICustomersService, CustomersService>();
         return services;
     }
 }

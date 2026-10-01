@@ -13,8 +13,14 @@ public class Customer : Entity, ITenantOwned
 
     public string? Email { get; set; }
 
-    /// <summary>Última vez que autorizó el uso de sus datos para gestionar sus citas (Ley 1581).</summary>
-    public DateTime PrivacyConsentAt { get; set; }
+    /// <summary>Notas internas del negocio sobre el cliente (alergias, preferencias...). El cliente no las ve.</summary>
+    public string? Notes { get; set; }
+
+    /// <summary>
+    /// Última vez que el cliente autorizó en la página pública el uso de sus datos (Ley 1581). Null si solo lo ha
+    /// registrado el negocio desde el panel: en ese caso la autorización la gestiona el negocio.
+    /// </summary>
+    public DateTime? PrivacyConsentAt { get; set; }
 }
 
 public enum AppointmentStatus

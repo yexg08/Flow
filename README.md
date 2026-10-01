@@ -22,8 +22,8 @@ aislados de los demás negocios.
 | 1 | Base: registro de negocios, login, aislamiento multi-negocio, superadmin, servicios, página pública | Hecha |
 | 2 | Equipo, horarios semanales y bloqueos | Hecha |
 | 3 | Reserva pública: horarios disponibles, reservar sin cuenta, cancelar/reprogramar | Hecha |
-| 4 | Agenda del negocio (día/semana), estados de cita, clientes | Pendiente |
-| 5 | Métricas, avisos por WhatsApp | Pendiente |
+| 4 | Agenda del negocio (día/semana), estados de cita, clientes | Hecha |
+| 5 | Cuentas del equipo, métricas, avisos por WhatsApp | Pendiente |
 | 6 | Pulido: capturas, demo en vivo, CI, Docker completo | Pendiente |
 | Después | Módulo de pedidos para restaurantes (menú por QR) | Pendiente |
 
@@ -78,6 +78,17 @@ explícita, filtra a mano por el negocio del enlace y usa DTOs propios con solo 
   negocio de esa cita y todo lo demás pasa por el filtro normal. La página usa `Referrer-Policy: no-referrer` para que
   el token no viaje a otros sitios.
 - Un servicio o una persona con citas no se puede borrar (se desactiva), para no perder el historial.
+
+### Agenda y clientes
+
+- **Agenda por día** (una columna por persona) **y por semana** (con filtro por persona), con los bloqueos sombreados
+  y la hora actual marcada. Las citas que se cruzan se dibujan lado a lado (`shared/agenda-layout.ts`, con pruebas).
+- **Agendar desde el panel** (llamadas, clientes que llegan en persona): se puede fuera del horario del equipo, porque
+  lo decide el negocio, pero nunca encima de otra cita de la misma persona ni durante un bloqueo.
+- **Estados**: confirmada → atendida o no asistió (solo cuando ya empezó) o cancelada. Todo se puede deshacer;
+  reactivar una cancelada exige que el horario siga libre.
+- **Clientes**: búsqueda por nombre o celular, visitas, inasistencias, próxima cita, historial completo y notas
+  internas que el cliente no ve.
 
 ### Roles
 
@@ -150,7 +161,7 @@ origen y no hace falta CORS.
 | `/` | Página de inicio de Flow |
 | `/registro` | Crear un negocio (registro abierto) |
 | `/login` | Iniciar sesión |
-| `/app` | Panel del negocio: inicio, servicios, equipo y horarios, bloqueos, ajustes |
+| `/app` | Panel del negocio: inicio, agenda, clientes, servicios, equipo y horarios, bloqueos, ajustes |
 | `/admin` | Panel de la plataforma (superadmin) |
 | `/n/{enlace}` | Página pública de un negocio |
 | `/n/{enlace}/reservar/{servicio}` | Reservar: persona, día, hora y datos |

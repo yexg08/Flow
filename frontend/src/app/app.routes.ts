@@ -11,6 +11,9 @@ export const routes: Routes = [
     loadComponent: () => import('./features/app/shell').then((m) => m.Shell),
     children: [
       { path: '', title: 'Inicio · Flow', loadComponent: () => import('./features/app/home').then((m) => m.Home) },
+      { path: 'agenda', title: 'Agenda · Flow', loadComponent: () => import('./features/app/agenda/agenda-page').then((m) => m.AgendaPage) },
+      { path: 'clientes', title: 'Clientes · Flow', loadComponent: () => import('./features/app/customers/customers-page').then((m) => m.CustomersPage) },
+      { path: 'clientes/:id', title: 'Cliente · Flow', loadComponent: () => import('./features/app/customers/customer-detail').then((m) => m.CustomerDetailPage) },
       { path: 'servicios', title: 'Servicios · Flow', loadComponent: () => import('./features/app/services/services-page').then((m) => m.ServicesPage) },
       { path: 'equipo', title: 'Equipo · Flow', loadComponent: () => import('./features/app/team/team-page').then((m) => m.TeamPage) },
       { path: 'equipo/:id/horario', title: 'Horario · Flow', loadComponent: () => import('./features/app/team/schedule-page').then((m) => m.SchedulePage) },
