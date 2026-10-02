@@ -3,6 +3,7 @@ import { HttpParams, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { heroCheckCircle, heroChevronLeft, heroChevronRight, heroNoSymbol, heroPlus } from '@ng-icons/heroicons/outline';
+import { AuthService } from '../../../core/auth/auth.service';
 import { API_BASE } from '../../../core/http/api';
 import { ToastService } from '../../../core/notifications/toast.service';
 import { addDays, layoutLanes, minuteOfDay, startOfWeek } from '../../../shared/agenda-layout';
@@ -63,8 +64,9 @@ export class AgendaPage {
 
   protected readonly view = signal<View>(this.storedView());
   protected readonly date = signal(toLocalIso(new Date()).slice(0, 10));
-  /** Vista semanal: ver a una sola persona (null = todo el equipo). */
-  protected readonly staffFilter = signal<string | null>(null);
+  private readonly auth = inject(AuthService);
+  /** Vista semanal: ver a una sola persona (null = todo el equipo). Un empleado arranca viendo la suya. */
+  protected readonly staffFilter = signal<string | null>(this.auth.isOwner() ? null : (this.auth.user()?.staffMemberId ?? null));
   protected readonly showCancelled = signal(false);
   private readonly now = signal(new Date());
 

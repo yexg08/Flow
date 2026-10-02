@@ -68,6 +68,17 @@ public class AuthController(IAuthService authService, ICurrentUser currentUser) 
     [Authorize]
     public Task<UserDto> Me(CancellationToken ct) => authService.GetUserAsync(currentUser.UserId!.Value, ct);
 
+    /// <summary>Cambiar la contraseña. Es lo único que puede hacer una cuenta con contraseña temporal.</summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    [EnableRateLimiting(RateLimits.Auth)]
+    public async Task<ActionResult<AuthResponse>> ChangePassword(ChangePasswordRequest request, CancellationToken ct)
+    {
+        var result = await authService.ChangePasswordAsync(currentUser.UserId!.Value, request, ct);
+        SetRefreshCookie(result);
+        return result.Response;
+    }
+
     private void SetRefreshCookie(AuthResult result) =>
         Response.Cookies.Append(RefreshCookie, result.RefreshToken, new CookieOptions
         {

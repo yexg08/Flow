@@ -1,5 +1,7 @@
 import { DialogRef, DIALOG_DATA } from '@angular/cdk/dialog';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, httpResource } from '@angular/common/http';
+import { AuthService } from '../../../core/auth/auth.service';
+import { confirmationMessage, reminderMessage, whatsAppLink } from '../../../shared/messages';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -8,6 +10,8 @@ import { Observable } from 'rxjs';
 import {
   heroArrowPath,
   heroArrowsRightLeft,
+  heroBellAlert,
+  heroChatBubbleLeftRight,
   heroCheckCircle,
   heroClock,
   heroNoSymbol,
@@ -31,7 +35,7 @@ export interface AppointmentDialogData {
   selector: 'app-appointment-dialog',
   imports: [ReactiveFormsModule, RouterLink, NgIcon],
   providers: [
-    provideIcons({ heroArrowPath, heroArrowsRightLeft, heroCheckCircle, heroClock, heroNoSymbol, heroUser, heroXCircle, heroXMark }),
+    provideIcons({ heroArrowPath, heroArrowsRightLeft, heroBellAlert, heroChatBubbleLeftRight, heroCheckCircle, heroClock, heroNoSymbol, heroUser, heroXCircle, heroXMark }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -72,6 +76,27 @@ export interface AppointmentDialogData {
             <p class="rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm text-muted">"{{ a.customerNote }}"</p>
           }
         </dl>
+
+        @if (a.status === 'Confirmed' && !started()) {
+          <div class="rounded-xl border border-line p-4">
+            <p class="text-sm font-semibold">Avisar por WhatsApp</p>
+            <p class="mt-0.5 text-xs text-muted">Se abre WhatsApp con el mensaje escrito y el enlace para que gestione su cita.</p>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+              @if (messages(); as m) {
+                <a [href]="m.confirmation" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+                  <ng-icon name="heroChatBubbleLeftRight" size="17" /> Confirmación
+                  <span class="sr-only">(se abre en otra pestaña)</span>
+                </a>
+                <a [href]="m.reminder" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+                  <ng-icon name="heroBellAlert" size="17" /> Recordatorio
+                  <span class="sr-only">(se abre en otra pestaña)</span>
+                </a>
+              } @else {
+                <span class="h-10 animate-pulse rounded-xl bg-surface-2 sm:col-span-2"></span>
+              }
+            </div>
+          </div>
+        }
 
         @if (error()) {
           <p class="rounded-xl border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-sm text-danger" role="alert">{{ error() }}</p>
@@ -160,6 +185,25 @@ export class AppointmentDialog {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly moving = signal(false);
+
+  /** Enlace privado de la cita, pedido al abrir el diálogo para que los botones de WhatsApp sean enlaces normales. */
+  private readonly manageLink = httpResource<{ token: string }>(() => `${API_BASE}/appointments/${this.appointment().id}/manage-link`);
+  private readonly auth = inject(AuthService);
+
+  protected readonly messages = computed(() => {
+    if (!this.manageLink.hasValue()) return null;
+    const a = this.appointment();
+    const data = {
+      customerName: a.customerName,
+      businessName: this.auth.tenant()?.name ?? '',
+      serviceName: a.serviceName,
+      staffName: a.staffName,
+      startsAt: a.startsAt,
+      link: `${location.origin}/cita/${this.manageLink.value().token}`,
+    };
+    const number = whatsAppNumber(a.customerPhone);
+    return { confirmation: whatsAppLink(number, confirmationMessage(data)), reminder: whatsAppLink(number, reminderMessage(data)) };
+  });
 
   protected readonly moveForm = inject(NonNullableFormBuilder).group({
     staffMemberId: [this.data.appointment.staffMemberId, Validators.required],

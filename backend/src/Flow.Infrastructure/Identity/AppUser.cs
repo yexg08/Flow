@@ -14,6 +14,15 @@ public class AppUser : IdentityUser<Guid>
     /// <summary>Desactivar corta el acceso de inmediato (se revisa en cada petición).</summary>
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// La contraseña actual es temporal (la generó el dueño del negocio): hasta cambiarla, la cuenta solo puede usar
+    /// el endpoint de cambio de contraseña.
+    /// </summary>
+    public bool MustChangePassword { get; set; }
+
+    /// <summary>Hasta cuándo sirve la contraseña temporal (7 días desde que se generó).</summary>
+    public DateTime? TemporaryPasswordExpiresAt { get; set; }
+
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }

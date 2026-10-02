@@ -27,13 +27,21 @@ public static class Policies
 
         options.AddPolicy(TenantMember, member);
         options.AddPolicy(TenantOwner, WithTenant().RequireRole(Roles.Owner).Build());
-        options.AddPolicy(SuperAdmin, new AuthorizationPolicyBuilder().RequireAuthenticatedUser().RequireRole(Roles.SuperAdmin).Build());
+        options.AddPolicy(SuperAdmin, Working().RequireRole(Roles.SuperAdmin).Build());
 
         options.FallbackPolicy = member;
         options.DefaultPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
     }
 
     /// <summary>El claim tenant_id lo agrega SessionValidator desde la base de datos, no viene en el token.</summary>
-    private static AuthorizationPolicyBuilder WithTenant() =>
-        new AuthorizationPolicyBuilder().RequireAuthenticatedUser().RequireClaim(AppClaims.TenantId);
+    private static AuthorizationPolicyBuilder WithTenant() => Working().RequireClaim(AppClaims.TenantId);
+
+    /// <summary>
+    /// Sesión que ya puede trabajar: una cuenta con contraseña temporal (claim pwd_change) no pasa ninguna política de
+    /// trabajo; solo puede usar /auth/me y /auth/change-password, que piden solo sesión.
+    /// </summary>
+    private static AuthorizationPolicyBuilder Working() =>
+        new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context => !context.User.HasClaim(c => c.Type == AppClaims.PasswordChangeRequired));
 }

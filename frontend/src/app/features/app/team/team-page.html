@@ -70,6 +70,31 @@
             } @else {
               <p class="mt-2 text-xs text-faint">Sin servicios asignados.</p>
             }
+            @if (auth.isOwner()) {
+              @let account = accountOf().get(person.id);
+              <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3 text-xs">
+                <ng-icon name="heroKey" size="14" class="text-muted" />
+                @if (account) {
+                  <span class="text-muted">
+                    Acceso al panel: <strong class="text-ink">{{ account.email }}</strong> ·
+                    @if (account.pendingFirstLogin) {
+                      <span class="text-accent">pendiente de primer ingreso (vence {{ date(account.temporaryPasswordExpiresAt) }})</span>
+                    } @else {
+                      último ingreso {{ date(account.lastLoginAt) }}
+                    }
+                  </span>
+                  <button type="button" class="inline-flex items-center gap-1 font-semibold text-accent hover:underline" (click)="resetPassword(person)">
+                    <ng-icon name="heroArrowPath" size="13" /> Nueva contraseña
+                  </button>
+                  <button type="button" class="inline-flex items-center gap-1 font-semibold text-muted hover:text-danger" (click)="revokeAccess(person)">
+                    <ng-icon name="heroXMark" size="13" /> Quitar acceso
+                  </button>
+                } @else {
+                  <span class="text-muted">Sin acceso al panel.</span>
+                  <button type="button" class="font-semibold text-accent hover:underline" (click)="grantAccess(person)">Dar acceso</button>
+                }
+              </div>
+            }
           </div>
           <div class="flex flex-wrap gap-2 sm:shrink-0">
             <a [routerLink]="[person.id, 'horario']" class="btn-secondary">

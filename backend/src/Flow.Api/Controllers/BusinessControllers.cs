@@ -1,6 +1,7 @@
 using Flow.Api.Auth;
 using Flow.Application.Business;
 using Flow.Application.Catalog;
+using Flow.Application.Metrics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +10,15 @@ namespace Flow.Api.Controllers;
 /// <summary>Ajustes del negocio de la sesión. Sin atributo de clase: aplica la política de respaldo (miembro del negocio).</summary>
 [ApiController]
 [Route("api/business")]
-public class BusinessController(IBusinessService business) : ControllerBase
+public class BusinessController(IBusinessService business, IMetricsService metrics) : ControllerBase
 {
     [HttpGet]
     public Task<BusinessDto> Get(CancellationToken ct) => business.GetCurrentAsync(ct);
+
+    /// <summary>Métricas de los últimos días (7 a 365). Solo el dueño: incluyen ingresos.</summary>
+    [HttpGet("metrics")]
+    [Authorize(Policy = Policies.TenantOwner)]
+    public Task<MetricsDto> Metrics([FromQuery] int days = 30, CancellationToken ct = default) => metrics.GetAsync(days, ct);
 
     [HttpPut]
     [Authorize(Policy = Policies.TenantOwner)]

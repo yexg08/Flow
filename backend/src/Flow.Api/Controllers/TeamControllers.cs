@@ -8,7 +8,7 @@ namespace Flow.Api.Controllers;
 /// <summary>Equipo del negocio de la sesión. Todos los miembros lo ven; solo el dueño lo gestiona.</summary>
 [ApiController]
 [Route("api/staff")]
-public class StaffController(ITeamService team) : ControllerBase
+public class StaffController(ITeamService team, ITeamAccountsService accounts) : ControllerBase
 {
     [HttpGet]
     public Task<IReadOnlyList<StaffDto>> List(CancellationToken ct) => team.ListAsync(ct);
@@ -29,7 +29,31 @@ public class StaffController(ITeamService team) : ControllerBase
     [Authorize(Policy = Policies.TenantOwner)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        await team.DeleteAsync(id, ct);
+        // Borra también su cuenta del panel, si tenía (todo o nada).
+        await accounts.DeleteStaffAsync(id, ct);
+        return NoContent();
+    }
+
+    /// <summary>Quién del equipo tiene acceso al panel.</summary>
+    [HttpGet("accounts")]
+    [Authorize(Policy = Policies.TenantOwner)]
+    public Task<IReadOnlyList<StaffAccountDto>> Accounts(CancellationToken ct) => accounts.ListAsync(ct);
+
+    /// <summary>Da acceso al panel. La contraseña temporal solo se ve en esta respuesta.</summary>
+    [HttpPost("{id:guid}/account")]
+    [Authorize(Policy = Policies.TenantOwner)]
+    public async Task<ActionResult<TemporaryPasswordDto>> GrantAccess(Guid id, GrantAccessRequest request, CancellationToken ct) =>
+        StatusCode(StatusCodes.Status201Created, await accounts.GrantAsync(id, request, ct));
+
+    [HttpPost("{id:guid}/account/reset-password")]
+    [Authorize(Policy = Policies.TenantOwner)]
+    public Task<TemporaryPasswordDto> ResetPassword(Guid id, CancellationToken ct) => accounts.ResetPasswordAsync(id, ct);
+
+    [HttpDelete("{id:guid}/account")]
+    [Authorize(Policy = Policies.TenantOwner)]
+    public async Task<IActionResult> RevokeAccess(Guid id, CancellationToken ct)
+    {
+        await accounts.RevokeAsync(id, ct);
         return NoContent();
     }
 

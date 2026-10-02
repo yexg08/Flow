@@ -33,6 +33,7 @@ public static class SessionValidator
                 u.IsActive,
                 u.SecurityStamp,
                 u.TenantId,
+                u.MustChangePassword,
                 TenantActive = u.TenantId == null || db.Tenants.Any(t => t.Id == u.TenantId && t.IsActive)
             })
             .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
@@ -49,8 +50,10 @@ public static class SessionValidator
             return;
         }
 
-        // Por si alguien fabricara un token con este claim: se descarta y se reconstruye desde la base.
-        foreach (var claim in identity.FindAll(AppClaims.TenantId).ToList()) identity.RemoveClaim(claim);
+        // Por si alguien fabricara un token con estos claims: se descartan y se reconstruyen desde la base.
+        foreach (var claim in identity.FindAll(c => c.Type is AppClaims.TenantId or AppClaims.PasswordChangeRequired).ToList())
+            identity.RemoveClaim(claim);
         if (session.TenantId is { } tenantId) identity.AddClaim(new Claim(AppClaims.TenantId, tenantId.ToString()));
+        if (session.MustChangePassword) identity.AddClaim(new Claim(AppClaims.PasswordChangeRequired, "true"));
     }
 }

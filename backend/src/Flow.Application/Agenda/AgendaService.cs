@@ -68,6 +68,8 @@ public interface IAgendaService
     Task<AgendaAppointmentDto> MoveAsync(Guid id, MoveAppointmentRequest request, CancellationToken ct);
     Task<AgendaAppointmentDto> SetStatusAsync(Guid id, SetStatusRequest request, CancellationToken ct);
 
+    Task<string> GetManageTokenAsync(Guid id, CancellationToken ct);
+
     /// <summary>Todas las citas de un cliente, de la más reciente a la más antigua.</summary>
     Task<IReadOnlyList<AgendaAppointmentDto>> GetCustomerHistoryAsync(Guid customerId, CancellationToken ct);
 }
@@ -76,7 +78,7 @@ public interface IAgendaService
 /// Agenda del negocio de la sesión. A diferencia de la página pública, el negocio puede agendar fuera del horario
 /// del equipo (es su decisión), pero nunca encima de otra cita de la misma persona ni durante un bloqueo.
 /// </summary>
-public class AgendaService(IAppDbContext db, ITenantContext tenant, TimeProvider timeProvider) : IAgendaService
+public class AgendaService(IAppDbContext db, ITenantContext tenant, IManageLinks links, TimeProvider timeProvider) : IAgendaService
 {
     public const int MaxRangeDays = 42;
 
@@ -136,10 +138,10 @@ public class AgendaService(IAppDbContext db, ITenantContext tenant, TimeProvider
             StartsAtUtc = startUtc,
             EndsAtUtc = endUtc,
             Price = service.Price,
-            CustomerNote = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
-            // Toda cita tiene token. Este no se muestra a nadie: el cliente lo recibirá cuando haya avisos (Fase 5).
-            ManageTokenHash = SecureTokens.Hash(SecureTokens.Generate())
+            Source = AppointmentSource.Panel,
+            CustomerNote = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim()
         };
+        appointment.ManageTokenHash = SecureTokens.Hash(links.TokenFor(appointment.Id));
         db.Appointments.Add(appointment);
         await db.SaveChangesAsync(ct);
         return await GetDtoAsync(appointment.Id, zone, ct);
@@ -197,6 +199,23 @@ public class AgendaService(IAppDbContext db, ITenantContext tenant, TimeProvider
         appointment.Status = next;
         await db.SaveChangesAsync(ct);
         return await GetDtoAsync(id, zone, ct);
+    }
+
+    /// <summary>
+    /// Token del enlace privado de la cita, para enviárselo al cliente. Las citas creadas antes de que los enlaces se
+    /// derivaran del id tienen un hash aleatorio: se actualiza aquí (el enlace viejo deja de servir, el nuevo es el bueno).
+    /// </summary>
+    public async Task<string> GetManageTokenAsync(Guid id, CancellationToken ct)
+    {
+        var appointment = await FindAsync(id, ct);
+        var token = links.TokenFor(appointment.Id);
+        var hash = SecureTokens.Hash(token);
+        if (appointment.ManageTokenHash != hash)
+        {
+            appointment.ManageTokenHash = hash;
+            await db.SaveChangesAsync(ct);
+        }
+        return token;
     }
 
     public async Task<IReadOnlyList<AgendaAppointmentDto>> GetCustomerHistoryAsync(Guid customerId, CancellationToken ct)

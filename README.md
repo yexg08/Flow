@@ -23,7 +23,7 @@ aislados de los demás negocios.
 | 2 | Equipo, horarios semanales y bloqueos | Hecha |
 | 3 | Reserva pública: horarios disponibles, reservar sin cuenta, cancelar/reprogramar | Hecha |
 | 4 | Agenda del negocio (día/semana), estados de cita, clientes | Hecha |
-| 5 | Cuentas del equipo, métricas, avisos por WhatsApp | Pendiente |
+| 5 | Cuentas del equipo, métricas, avisos por WhatsApp | Hecha |
 | 6 | Pulido: capturas, demo en vivo, CI, Docker completo | Pendiente |
 | Después | Módulo de pedidos para restaurantes (menú por QR) | Pendiente |
 
@@ -90,13 +90,28 @@ explícita, filtra a mano por el negocio del enlace y usa DTOs propios con solo 
 - **Clientes**: búsqueda por nombre o celular, visitas, inasistencias, próxima cita, historial completo y notas
   internas que el cliente no ve.
 
+### Equipo con acceso, métricas y avisos
+
+- **Cuentas del equipo**: el dueño le da acceso al panel a una persona del equipo con su correo. El sistema genera
+  una contraseña temporal (16 caracteres, sin caracteres que se confundan) que se ve **una sola vez**, vence a los
+  **7 días** y obliga a cambiarla en el primer ingreso: mientras tanto la cuenta solo puede usar el cambio de
+  contraseña (lo aplica la API, no solo la pantalla). Generar otra o quitar el acceso corta sus sesiones al instante.
+  Borrar a la persona borra también su cuenta, o nada si la persona tiene citas.
+- **Métricas** (solo el dueño): ingresos de las citas atendidas, próximas citas y lo que falta por cobrar, clientes
+  nuevos, porcentaje de reservas en línea, tasa de inasistencia, citas por día, servicios más pedidos y citas por
+  persona. La gráfica tiene vista de tabla y su color está validado para ambos temas.
+- **Avisos por WhatsApp**: desde el detalle de una cita, confirmación o recordatorio en un clic con enlaces `wa.me`
+  (sin costo ni API de pago), con el enlace privado de la cita incluido.
+- **Enlaces de cita reconstruibles**: el token es `HMAC-SHA256(Links:Key, id de la cita)`, así el negocio puede volver
+  a enviarlo cuando quiera sin guardarlo; en la base solo está su hash.
+
 ### Roles
 
 | Rol | Qué puede usar |
 |---|---|
 | **Superadmin** | Panel de la plataforma (`/admin`): todos los negocios, suspender/reactivar. No ve datos internos de los negocios. |
 | **Dueño** | Todo el panel de su negocio, incluidos servicios y ajustes. |
-| **Empleado** | Ve el panel de su negocio; no puede modificar servicios ni ajustes. |
+| **Empleado** | Agenda, clientes y marcar asistencia. No puede cambiar servicios, equipo ni ajustes, ni ver métricas. |
 | Cliente final | No tiene cuenta: usa la página pública del negocio. |
 
 **Denegar por defecto:** la política de respaldo de ASP.NET exige ser miembro de un negocio. Un endpoint nuevo sin
@@ -130,8 +145,10 @@ docker compose up -d
 # 2. Contraseña del superadmin (la clave JWT ya está configurada en user-secrets)
 cd backend/src/Flow.Api
 dotnet user-secrets set "Seed:SuperAdminPassword" "<mínimo 10 caracteres, con letras y números>"
-#    Si clonaste el repo en otro equipo, genera también la clave JWT (mínimo 32 caracteres):
+#    Si clonaste el repo en otro equipo, genera también las dos claves (mínimo 32 caracteres cada una, distintas):
 #    dotnet user-secrets set "Jwt:Key" "<texto aleatorio largo>"
+#    dotnet user-secrets set "Links:Key" "<otro texto aleatorio largo>"
+#    Sin ellas la API no arranca. Cambiar Links:Key invalida todos los enlaces de cita ya enviados.
 
 # 3. Dependencias del frontend
 cd ../../../frontend
@@ -161,7 +178,8 @@ origen y no hace falta CORS.
 | `/` | Página de inicio de Flow |
 | `/registro` | Crear un negocio (registro abierto) |
 | `/login` | Iniciar sesión |
-| `/app` | Panel del negocio: inicio, agenda, clientes, servicios, equipo y horarios, bloqueos, ajustes |
+| `/app` | Panel del negocio: inicio, agenda, clientes, servicios, equipo y horarios, bloqueos, métricas, ajustes |
+| `/cambiar-contrasena` | Primer ingreso de un empleado con contraseña temporal |
 | `/admin` | Panel de la plataforma (superadmin) |
 | `/n/{enlace}` | Página pública de un negocio |
 | `/n/{enlace}/reservar/{servicio}` | Reservar: persona, día, hora y datos |

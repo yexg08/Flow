@@ -51,6 +51,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Default", _postgres.GetConnectionString());
         builder.UseSetting("Jwt:Key", new string('k', 64));
+        builder.UseSetting("Links:Key", new string('l', 64));
         builder.UseSetting("Seed:SuperAdminEmail", SuperAdminEmail);
         builder.UseSetting("Seed:SuperAdminPassword", SuperAdminPassword);
         builder.UseSetting("RateLimiting:AuthPerMinute", "100000");

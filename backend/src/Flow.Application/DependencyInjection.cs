@@ -1,6 +1,7 @@
 using Flow.Application.Agenda;
 using Flow.Application.Booking;
 using Flow.Application.Customers;
+using Flow.Application.Metrics;
 using Flow.Application.Business;
 using Flow.Application.Catalog;
 using Flow.Application.Public;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IAppointmentsService, AppointmentsService>();
         services.AddScoped<IAgendaService, AgendaService>();
         services.AddScoped<ICustomersService, CustomersService>();
+        services.AddScoped<IMetricsService, MetricsService>();
         return services;
     }
 }

@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, catchError, finalize, firstValueFrom, map, of, shareReplay } from 'rxjs';
 import { API_BASE, silentErrors } from '../http/api';
 import { ToastService } from '../notifications/toast.service';
-import { AuthResponse, LoginRequest, RegisterRequest, SlugAvailability, TenantSummary, User } from './auth.models';
+import { AuthResponse, ChangePasswordRequest, LoginRequest, RegisterRequest, SlugAvailability, TenantSummary, User } from './auth.models';
 
 /**
  * Estado de la sesión.
@@ -29,11 +29,23 @@ export class AuthService {
   readonly isOwner = computed(() => this.currentUser()?.role === 'Owner');
   readonly isTenantMember = computed(() => this.currentUser()?.tenant != null);
   readonly tenant = computed(() => this.currentUser()?.tenant ?? null);
+  readonly mustChangePassword = computed(() => this.currentUser()?.mustChangePassword ?? false);
 
-  /** A dónde va cada cuenta al entrar: el superadmin a la plataforma; dueños y empleados a su negocio. */
+  /**
+   * A dónde va cada cuenta al entrar: primero a cambiar la contraseña temporal; luego el superadmin a la plataforma
+   * y dueños y empleados a su negocio.
+   */
   homeUrl(): string {
     if (!this.isAuthenticated()) return '/login';
+    if (this.mustChangePassword()) return '/cambiar-contrasena';
     return this.isSuperAdmin() ? '/admin' : '/app';
+  }
+
+  /** La API cierra las demás sesiones y devuelve tokens nuevos para esta. */
+  changePassword(request: ChangePasswordRequest): Observable<User> {
+    return this.http
+      .post<AuthResponse>(`${API_BASE}/auth/change-password`, request, { context: silentErrors() })
+      .pipe(map((response) => this.setSession(response)));
   }
 
   login(credentials: LoginRequest): Observable<User> {

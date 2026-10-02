@@ -1,10 +1,11 @@
 import { Routes } from '@angular/router';
-import { guestGuard, ownerGuard, superAdminGuard, tenantGuard } from './core/auth/auth.guards';
+import { guestGuard, ownerGuard, passwordChangeGuard, superAdminGuard, tenantGuard } from './core/auth/auth.guards';
 
 export const routes: Routes = [
   { path: '', title: 'Flow · Agenda en línea para tu negocio', loadComponent: () => import('./features/landing/landing').then((m) => m.Landing) },
   { path: 'login', title: 'Iniciar sesión · Flow', canActivate: [guestGuard], loadComponent: () => import('./features/auth/login').then((m) => m.Login) },
   { path: 'registro', title: 'Crea tu negocio · Flow', canActivate: [guestGuard], loadComponent: () => import('./features/auth/register').then((m) => m.Register) },
+  { path: 'cambiar-contrasena', title: 'Elige tu contraseña · Flow', canActivate: [passwordChangeGuard], loadComponent: () => import('./features/auth/change-password').then((m) => m.ChangePassword) },
   {
     path: 'app',
     canActivate: [tenantGuard],
@@ -18,6 +19,7 @@ export const routes: Routes = [
       { path: 'equipo', title: 'Equipo · Flow', loadComponent: () => import('./features/app/team/team-page').then((m) => m.TeamPage) },
       { path: 'equipo/:id/horario', title: 'Horario · Flow', loadComponent: () => import('./features/app/team/schedule-page').then((m) => m.SchedulePage) },
       { path: 'bloqueos', title: 'Bloqueos · Flow', loadComponent: () => import('./features/app/time-off/time-off-page').then((m) => m.TimeOffPage) },
+      { path: 'metricas', title: 'Métricas · Flow', canActivate: [ownerGuard], loadComponent: () => import('./features/app/metrics/metrics-page').then((m) => m.MetricsPage) },
       { path: 'ajustes', title: 'Ajustes · Flow', canActivate: [ownerGuard], loadComponent: () => import('./features/app/settings/settings').then((m) => m.Settings) },
     ],
   },

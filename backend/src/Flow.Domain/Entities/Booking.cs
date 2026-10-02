@@ -31,6 +31,13 @@ public enum AppointmentStatus
     NoShow
 }
 
+/// <summary>Por dónde entró la cita: la página pública o el panel del negocio.</summary>
+public enum AppointmentSource
+{
+    Online,
+    Panel
+}
+
 /// <summary>
 /// Una cita. Dos citas activas (no canceladas) de la misma persona del equipo no se pueden cruzar: lo garantiza una
 /// restricción de exclusión de PostgreSQL, así que ni dos reservas simultáneas pueden tomar el mismo horario.
@@ -47,14 +54,17 @@ public class Appointment : Entity, ITenantOwned
 
     public AppointmentStatus Status { get; set; } = AppointmentStatus.Confirmed;
 
+    public AppointmentSource Source { get; set; } = AppointmentSource.Online;
+
     /// <summary>Precio del servicio al momento de reservar (el servicio puede cambiar de precio después).</summary>
     public decimal Price { get; set; }
 
     public string? CustomerNote { get; set; }
 
     /// <summary>
-    /// SHA-256 del token del enlace que recibe el cliente para ver, cancelar o reprogramar su cita. El token en sí no
-    /// se guarda: quien tenga acceso a la base no puede armar el enlace.
+    /// SHA-256 del token del enlace con el que el cliente ve, cancela o reprograma su cita. El token se deriva del id
+    /// con una clave secreta del servidor (HMAC), así el negocio puede volver a enviarlo; en la base solo queda el hash,
+    /// y sin la clave no se puede armar el enlace.
     /// </summary>
     public string ManageTokenHash { get; set; } = string.Empty;
 

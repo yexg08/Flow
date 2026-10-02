@@ -9,7 +9,22 @@ public record LoginRequest(string Email, string Password);
 
 public record TenantSummaryDto(Guid Id, string Name, string Slug);
 
-public record UserDto(Guid Id, string Email, string FullName, string Role, TenantSummaryDto? Tenant);
+/// <param name="StaffMemberId">Si la cuenta es de un empleado: la persona del equipo a la que corresponde.</param>
+public record UserDto(
+    Guid Id, string Email, string FullName, string Role, TenantSummaryDto? Tenant, bool MustChangePassword, Guid? StaffMemberId);
+
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+public class ChangePasswordRequestValidator : AbstractValidator<ChangePasswordRequest>
+{
+    public ChangePasswordRequestValidator()
+    {
+        RuleFor(x => x.CurrentPassword).NotEmpty().WithMessage("Escribe tu contraseña actual.");
+        RuleFor(x => x.NewPassword)
+            .ValidPassword()
+            .NotEqual(x => x.CurrentPassword).WithMessage("La nueva contraseña debe ser distinta a la actual.");
+    }
+}
 
 public record AuthResponse(string AccessToken, DateTime AccessTokenExpiresAt, UserDto User);
 
@@ -27,6 +42,9 @@ public interface IAuthService
     Task LogoutAsync(string refreshToken, CancellationToken ct = default);
     Task<UserDto> GetUserAsync(Guid userId, CancellationToken ct = default);
     Task<SlugAvailabilityDto> CheckSlugAsync(string slug, CancellationToken ct = default);
+
+    /// <summary>Cambia la contraseña, cierra las demás sesiones y devuelve tokens nuevos para esta.</summary>
+    Task<AuthResult> ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken ct = default);
 }
 
 public class RegisterRequestValidator : AbstractValidator<RegisterRequest>

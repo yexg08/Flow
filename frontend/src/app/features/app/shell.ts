@@ -7,6 +7,7 @@ import {
   heroArrowTopRightOnSquare,
   heroBars3,
   heroCalendarDays,
+  heroChartBar,
   heroCog6Tooth,
   heroHome,
   heroNoSymbol,
@@ -37,6 +38,7 @@ interface NavItem {
       heroArrowTopRightOnSquare,
       heroBars3,
       heroCalendarDays,
+      heroChartBar,
       heroCog6Tooth,
       heroHome,
       heroNoSymbol,
@@ -60,6 +62,7 @@ export class Shell {
     { path: '/app/servicios', label: 'Servicios', icon: 'heroSquares2x2', exact: false, ownerOnly: false },
     { path: '/app/equipo', label: 'Equipo y horarios', icon: 'heroUsers', exact: false, ownerOnly: false },
     { path: '/app/bloqueos', label: 'Bloqueos', icon: 'heroNoSymbol', exact: false, ownerOnly: false },
+    { path: '/app/metricas', label: 'Métricas', icon: 'heroChartBar', exact: false, ownerOnly: true },
     { path: '/app/ajustes', label: 'Ajustes del negocio', icon: 'heroCog6Tooth', exact: false, ownerOnly: true },
   ];
 

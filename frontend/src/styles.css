@@ -21,6 +21,9 @@
   --color-danger: light-dark(#b91c1c, #fca5a5);
   --color-success: light-dark(#166534, #86efac);
 
+  /* Barras de las gráficas (una sola serie). Validado con el validador de dataviz en ambos temas. */
+  --color-chart: light-dark(#7c3aed, #8b5cf6);
+
   /* Degradado de marca: texto blanco encima >= 4.6:1 en cada parada. */
   --color-brand-1: #7c3aed;
   --color-brand-2: #c026d3;

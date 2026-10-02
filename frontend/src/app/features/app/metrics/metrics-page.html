@@ -1,0 +1,189 @@
+<div class="mx-auto max-w-5xl">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Métricas</h1>
+      <p class="mt-1 text-muted">Cómo le va a tu negocio. Solo tú las ves.</p>
+    </div>
+    <div class="flex rounded-xl border border-line bg-surface p-0.5" role="group" aria-label="Periodo">
+      @for (p of periods; track p.days) {
+        <button
+          type="button"
+          class="rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+          [class]="days() === p.days ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink'"
+          [attr.aria-pressed]="days() === p.days"
+          (click)="days.set(p.days)"
+        >
+          Últimos {{ p.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (metrics.error()) {
+    <div class="card mt-8 p-8 text-center">
+      <p class="font-semibold">No se pudieron cargar las métricas.</p>
+      <button type="button" class="btn-secondary mt-4" (click)="metrics.reload()">Reintentar</button>
+    </div>
+  } @else if (!m()) {
+    <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="card h-28 animate-pulse bg-surface-2"></div>
+      }
+    </div>
+  } @else {
+    @let data = m()!;
+    <div [class.opacity-60]="metrics.isLoading()">
+      <!-- Indicadores -->
+      <section class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Indicadores del periodo">
+        <div class="card relative overflow-hidden p-5 sm:col-span-2">
+          <div aria-hidden="true" class="bg-brand absolute inset-0 opacity-[0.08]"></div>
+          <p class="relative text-sm text-muted">Ingresos por citas atendidas</p>
+          <p class="relative mt-1 text-4xl font-extrabold tracking-tight tabular-nums">{{ money(data.revenue) }}</p>
+          <p class="relative mt-2 text-sm text-muted">
+            {{ data.completed }} atendida(s) de {{ data.appointments }} cita(s)
+            @if (data.cancelled > 0) {
+              · {{ data.cancelled }} cancelada(s)
+            }
+          </p>
+        </div>
+        <div class="card p-5">
+          <p class="flex items-center justify-between text-sm text-muted">Próximas citas <ng-icon name="heroCalendarDays" size="17" class="text-accent" /></p>
+          <p class="mt-1 text-3xl font-extrabold tabular-nums">{{ data.upcomingAppointments }}</p>
+          <p class="mt-1 text-xs text-muted">{{ money(data.upcomingRevenue) }} por cobrar</p>
+        </div>
+        <div class="card p-5">
+          <p class="flex items-center justify-between text-sm text-muted">Clientes nuevos <ng-icon name="heroUserPlus" size="17" class="text-accent" /></p>
+          <p class="mt-1 text-3xl font-extrabold tabular-nums">{{ data.newCustomers }}</p>
+          <p class="mt-1 text-xs text-muted">en el periodo</p>
+        </div>
+        <div class="card p-5">
+          <p class="flex items-center justify-between text-sm text-muted">Reservas en línea <ng-icon name="heroGlobeAlt" size="17" class="text-accent" /></p>
+          <p class="mt-1 text-3xl font-extrabold tabular-nums">{{ percent(data.onlineShare) }}</p>
+          <p class="mt-1 text-xs text-muted">de las citas llegaron por tu página</p>
+        </div>
+        <div class="card p-5">
+          <p class="flex items-center justify-between text-sm text-muted">Inasistencia <ng-icon name="heroNoSymbol" size="17" class="text-accent" /></p>
+          <p class="mt-1 text-3xl font-extrabold tabular-nums" [class.text-danger]="data.noShowRate >= 0.15">{{ percent(data.noShowRate) }}</p>
+          <p class="mt-1 text-xs text-muted">{{ data.noShows }} de {{ data.completed + data.noShows }} citas ya resueltas</p>
+        </div>
+      </section>
+
+      <!-- Citas por día -->
+      <section class="card mt-6 p-5 sm:p-6" aria-labelledby="daily-title">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="daily-title" class="font-bold">Citas por día</h2>
+          <button type="button" class="text-sm font-semibold text-accent hover:underline" (click)="showTable.set(!showTable())" [attr.aria-expanded]="showTable()">
+            {{ showTable() ? 'Ver gráfica' : 'Ver como tabla' }}
+          </button>
+        </div>
+
+        @if (showTable()) {
+          <div class="mt-4 max-h-80 overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="sticky top-0 bg-surface text-left text-xs text-muted uppercase">
+                <tr><th scope="col" class="py-2 font-semibold">Día</th><th scope="col" class="py-2 text-right font-semibold">Citas</th><th scope="col" class="py-2 text-right font-semibold">Atendidas</th></tr>
+              </thead>
+              <tbody class="divide-y divide-line">
+                @for (d of data.daily; track d.date) {
+                  <tr><td class="py-1.5 capitalize">{{ dayLabel(d.date, true) }}</td><td class="py-1.5 text-right tabular-nums">{{ d.appointments }}</td><td class="py-1.5 text-right tabular-nums">{{ d.completed }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="mt-5 flex gap-2" role="img" [attr.aria-label]="'Citas por día del ' + dayLabel(data.from) + ' al ' + dayLabel(data.to) + ': ' + data.appointments + ' en total. Usa la vista de tabla para ver cada día.'">
+            <!-- Eje Y -->
+            <div class="relative h-52 w-7 shrink-0 text-right text-[11px] text-faint tabular-nums" aria-hidden="true">
+              @for (tick of axis().ticks; track $index; let i = $index) {
+                <span class="absolute right-0 -translate-y-1/2" [style.top.%]="i * 25">{{ tick }}</span>
+              }
+              <span class="absolute right-0 bottom-0 translate-y-1/2">0</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="relative h-52">
+                <!-- Guías horizontales, discretas -->
+                @for (i of [0, 1, 2, 3]; track i) {
+                  <div class="absolute inset-x-0 border-t border-dashed border-line" [style.top.%]="i * 25" aria-hidden="true"></div>
+                }
+                <div class="absolute inset-x-0 bottom-0 border-t border-line" aria-hidden="true"></div>
+                <!-- Barras: cada columna completa es el área de hover (más grande que la barra) -->
+                <div class="absolute inset-0 flex items-end gap-[2px]">
+                  @for (d of data.daily; track d.date) {
+                    <div class="group relative flex h-full min-w-0 flex-1 items-end justify-center">
+                      @if (d.appointments > 0) {
+                        <div class="w-full max-w-8 rounded-t bg-chart transition group-hover:brightness-125" [style.height.%]="barHeight(d.appointments)"></div>
+                      }
+                      <div
+                        class="pointer-events-none absolute bottom-full z-10 mb-1 hidden -translate-x-1/2 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs whitespace-nowrap shadow-lg group-hover:block"
+                        style="left: 50%"
+                      >
+                        <p class="font-semibold capitalize">{{ dayLabel(d.date, true) }}</p>
+                        <p class="text-muted">{{ d.appointments }} cita(s) · {{ d.completed }} atendida(s)</p>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+              <!-- Eje X -->
+              <div class="mt-1.5 flex gap-[2px] text-[11px] text-faint" aria-hidden="true">
+                @for (d of data.daily; track d.date; let i = $index) {
+                  <span class="min-w-0 flex-1 text-center whitespace-nowrap">{{ i % labelEvery() === 0 ? dayLabel(d.date) : '' }}</span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </section>
+
+      <div class="mt-6 grid gap-6 lg:grid-cols-2">
+        <!-- Servicios más pedidos -->
+        <section class="card p-5 sm:p-6" aria-labelledby="services-title">
+          <h2 id="services-title" class="font-bold">Servicios más pedidos</h2>
+          @if (data.topServices.length === 0) {
+            <p class="mt-4 text-sm text-muted">Sin citas en el periodo.</p>
+          } @else {
+            <ul class="mt-4 space-y-3.5">
+              @for (r of data.topServices; track r.name) {
+                <li>
+                  <div class="flex items-baseline justify-between gap-3 text-sm">
+                    <span class="truncate font-medium">{{ r.name }}</span>
+                    <span class="shrink-0 text-muted tabular-nums">{{ r.appointments }} · {{ money(r.revenue) }}</span>
+                  </div>
+                  <div class="mt-1.5 h-2 rounded-full bg-surface-2" aria-hidden="true">
+                    <div class="h-2 rounded-full bg-chart" [style.width.%]="rankWidth(r.appointments, data.topServices)"></div>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+
+        <!-- Por persona -->
+        <section class="card p-5 sm:p-6" aria-labelledby="staff-title">
+          <h2 id="staff-title" class="font-bold">Citas por persona</h2>
+          @if (data.byStaff.length === 0) {
+            <p class="mt-4 text-sm text-muted">Sin citas en el periodo.</p>
+          } @else {
+            <ul class="mt-4 space-y-3.5">
+              @for (r of data.byStaff; track r.name) {
+                <li>
+                  <div class="flex items-baseline justify-between gap-3 text-sm">
+                    <span class="flex min-w-0 items-center gap-2 font-medium">
+                      <span class="size-2.5 shrink-0 rounded-full" [style.background-color]="r.color" aria-hidden="true"></span>
+                      <span class="truncate">{{ r.name }}</span>
+                    </span>
+                    <span class="shrink-0 text-muted tabular-nums">{{ r.appointments }} · {{ money(r.revenue) }}</span>
+                  </div>
+                  <div class="mt-1.5 h-2 rounded-full bg-surface-2" aria-hidden="true">
+                    <div class="h-2 rounded-full bg-chart" [style.width.%]="rankWidth(r.appointments, data.byStaff)"></div>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+          <p class="mt-4 text-xs text-faint">Ingresos = citas atendidas. Las canceladas no cuentan.</p>
+        </section>
+      </div>
+    </div>
+  }
+</div>

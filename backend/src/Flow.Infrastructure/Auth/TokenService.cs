@@ -31,8 +31,11 @@ public static class AppClaims
     /// <summary>Sello de seguridad de Identity al emitir el token: si cambia, el token deja de servir.</summary>
     public const string SecurityStamp = "stamp";
 
-    /// <summary>NO va en el token: el servidor lo agrega al validarlo, leyendo la base de datos.</summary>
+    // Los siguientes NO van en el token: el servidor los agrega al validarlo, leyendo la base de datos.
     public const string TenantId = "tenant_id";
+
+    /// <summary>La cuenta tiene contraseña temporal: hasta cambiarla, ninguna política de trabajo la deja pasar.</summary>
+    public const string PasswordChangeRequired = "pwd_change";
 }
 
 public class TokenService(IOptions<JwtOptions> options, TimeProvider timeProvider)

@@ -70,7 +70,13 @@ public class AppointmentsController(IAppointmentsService appointments, IAgendaSe
     [HttpPatch("{id:guid}/status")]
     public Task<AgendaAppointmentDto> SetStatus(Guid id, SetStatusRequest request, CancellationToken ct) =>
         agenda.SetStatusAsync(id, request, ct);
+
+    /// <summary>Token del enlace privado de la cita, para enviárselo al cliente por WhatsApp.</summary>
+    [HttpGet("{id:guid}/manage-link")]
+    public async Task<ManageLinkDto> ManageLink(Guid id, CancellationToken ct) => new(await agenda.GetManageTokenAsync(id, ct));
 }
+
+public record ManageLinkDto(string Token);
 
 /// <summary>Clientes del negocio de la sesión.</summary>
 [ApiController]

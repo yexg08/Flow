@@ -24,6 +24,7 @@ public class AuthService(
     public const string AccountDisabled = "Tu cuenta está desactivada.";
     public const string BusinessSuspended = "Este negocio está suspendido. Escríbenos si crees que es un error.";
     private const string SlugTaken = "Ese enlace ya lo usa otro negocio.";
+    public const string TemporaryPasswordExpired = "Tu contraseña temporal venció. Pídele una nueva al dueño del negocio.";
 
     private static string? _dummyHash;
 
@@ -109,7 +110,11 @@ public class AuthService(
         // Estos motivos se revelan solo DESPUÉS de verificar la contraseña.
         await EnsureCanSignInAsync(user, ct);
 
-        user.LastLoginAt = timeProvider.GetUtcNow().UtcDateTime;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        if (user.MustChangePassword && user.TemporaryPasswordExpiresAt is { } expires && expires < now)
+            throw new AuthenticationFailedException(TemporaryPasswordExpired);
+
+        user.LastLoginAt = now;
         await userManager.UpdateAsync(user);
 
         return await IssueTokensAsync(user, ct);
@@ -171,6 +176,29 @@ public class AuthService(
         return new SlugAvailabilityDto(slug, true, null);
     }
 
+    public async Task<AuthResult> ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken ct = default)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString()) ?? throw new AuthenticationFailedException(InvalidSession);
+
+        // ChangePasswordAsync verifica la actual y renueva el sello de seguridad (los access tokens viejos dejan de servir).
+        var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            var mismatch = result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordMismatch));
+            throw mismatch
+                ? new FieldValidationException(nameof(request.CurrentPassword), "La contraseña actual no es correcta.")
+                : new FieldValidationException(nameof(request.NewPassword), result.Errors.First().Description);
+        }
+
+        user.MustChangePassword = false;
+        user.TemporaryPasswordExpiresAt = null;
+        await userManager.UpdateAsync(user);
+
+        // Cierra las demás sesiones (otros dispositivos) y abre una nueva para esta.
+        await RevokeAllAsync(db, user.Id, timeProvider.GetUtcNow().UtcDateTime, ct);
+        return await IssueTokensAsync(user, ct);
+    }
+
     /// <summary>Cuenta activa y, si pertenece a un negocio, que el negocio no esté suspendido.</summary>
     private async Task EnsureCanSignInAsync(AppUser user, CancellationToken ct)
     {
@@ -225,14 +253,20 @@ public class AuthService(
     {
         var role = (await userManager.GetRolesAsync(user)).FirstOrDefault() ?? Roles.Staff;
         TenantSummaryDto? tenant = null;
+        Guid? staffMemberId = null;
         if (user.TenantId is { } tenantId)
         {
             tenant = await db.Tenants.AsNoTracking()
                 .Where(t => t.Id == tenantId)
                 .Select(t => new TenantSummaryDto(t.Id, t.Name, t.Slug))
                 .FirstOrDefaultAsync(ct);
+            // Al iniciar sesión aún no hay negocio en la sesión: se filtra a mano por el negocio de la cuenta.
+            staffMemberId = await db.Staff.IgnoreQueryFilters()
+                .Where(s => s.TenantId == tenantId && s.UserId == user.Id)
+                .Select(s => (Guid?)s.Id)
+                .FirstOrDefaultAsync(ct);
         }
 
-        return new UserDto(user.Id, user.Email ?? string.Empty, user.FullName, role, tenant);
+        return new UserDto(user.Id, user.Email ?? string.Empty, user.FullName, role, tenant, user.MustChangePassword, staffMemberId);
     }
 }

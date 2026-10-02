@@ -1,6 +1,8 @@
 using Flow.Application.Abstractions;
 using Flow.Application.Admin;
 using Flow.Application.Auth;
+using Flow.Application.Team;
+using Flow.Infrastructure.Team;
 using Flow.Infrastructure.Admin;
 using Flow.Infrastructure.Auth;
 using Flow.Infrastructure.Identity;
@@ -49,9 +51,16 @@ public static class DependencyInjection
             .Validate(o => o.Key.Length >= 32, "Jwt:Key debe tener al menos 32 caracteres (configúralo con user-secrets).")
             .ValidateOnStart();
 
+        services.AddOptions<LinkOptions>()
+            .Bind(configuration.GetSection(LinkOptions.SectionName))
+            .Validate(o => o.Key.Length >= 32, "Links:Key debe tener al menos 32 caracteres (configúralo con user-secrets).")
+            .ValidateOnStart();
+        services.AddSingleton<IManageLinks, ManageLinks>();
+
         services.AddScoped<TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<ITeamAccountsService, TeamAccountsService>();
 
         return services;
     }

@@ -15,6 +15,9 @@ public class StaffMember : Entity, ITenantOwned
     /// <summary>Inactivo = no recibe reservas nuevas (vacaciones largas, ya no trabaja ahí...), pero se conserva.</summary>
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Cuenta con la que esta persona entra al panel (rol empleado). Null = no tiene acceso.</summary>
+    public Guid? UserId { get; set; }
+
     public List<StaffMemberService> Services { get; set; } = [];
     public List<WorkingHours> WorkingHours { get; set; } = [];
 }

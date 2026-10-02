@@ -41,7 +41,9 @@ public class StaffMemberConfiguration : IEntityTypeConfiguration<StaffMember>
         b.Property(s => s.Name).HasMaxLength(80).IsRequired();
         b.Property(s => s.Color).HasMaxLength(7).IsRequired();
         b.HasIndex(s => s.TenantId);
+        b.HasIndex(s => s.UserId).IsUnique();
         b.HasOne<Tenant>().WithMany().HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<AppUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.SetNull);
         // Al borrar a la persona se borran sus horarios, sus servicios y sus bloqueos (lo hace la base de datos).
         b.HasMany(s => s.Services).WithOne().HasForeignKey(x => x.StaffMemberId).OnDelete(DeleteBehavior.Cascade);
         b.HasMany(s => s.WorkingHours).WithOne().HasForeignKey(x => x.StaffMemberId).OnDelete(DeleteBehavior.Cascade);
@@ -111,6 +113,7 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
     {
         b.ToTable("appointments", t => t.HasCheckConstraint("ck_appointments_range", "\"EndsAtUtc\" > \"StartsAtUtc\""));
         b.Property(a => a.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(a => a.Source).HasConversion<string>().HasMaxLength(10).HasDefaultValue(AppointmentSource.Online);
         b.Property(a => a.Price).HasPrecision(14, 2);
         b.Property(a => a.CustomerNote).HasMaxLength(300);
         b.Property(a => a.ManageTokenHash).HasMaxLength(64).IsRequired();

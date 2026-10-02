@@ -4,18 +4,18 @@ import { AuthService } from './auth.service';
 
 /*
  * Los guards solo deciden qué pantalla ver: la seguridad real está en la API (denegar por defecto, datos filtrados
- * por negocio). Quien se salte un guard igual recibe 401/403/404 de la API.
+ * por negocio, cuentas con contraseña temporal bloqueadas). Quien se salte un guard igual recibe 401/403/404.
  */
 
-/** Panel del negocio: dueños y empleados. */
+/** Panel del negocio: dueños y empleados que ya cambiaron su contraseña temporal. */
 export const tenantGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.isAuthenticated()) return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
-  return auth.isTenantMember() ? true : router.parseUrl(auth.homeUrl());
+  return auth.isTenantMember() && !auth.mustChangePassword() ? true : router.parseUrl(auth.homeUrl());
 };
 
-/** Pantallas que solo usa el dueño (ajustes del negocio). Va detrás de tenantGuard. */
+/** Pantallas que solo usa el dueño (ajustes, métricas). Va detrás de tenantGuard. */
 export const ownerGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   return auth.isOwner() ? true : inject(Router).parseUrl('/app');
@@ -26,7 +26,15 @@ export const superAdminGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.isAuthenticated()) return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
-  return auth.isSuperAdmin() ? true : router.parseUrl(auth.homeUrl());
+  return auth.isSuperAdmin() && !auth.mustChangePassword() ? true : router.parseUrl(auth.homeUrl());
+};
+
+/** Cambio de contraseña obligatorio: solo cuentas con contraseña temporal. */
+export const passwordChangeGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (!auth.isAuthenticated()) return router.parseUrl('/login');
+  return auth.mustChangePassword() ? true : router.parseUrl(auth.homeUrl());
 };
 
 /** Login y registro solo tienen sentido sin sesión. */

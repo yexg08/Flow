@@ -76,7 +76,8 @@ public interface IPublicBookingService
 /// id de servicio o de persona de otro negocio simplemente no se encuentra.
 /// </summary>
 public class PublicBookingService(
-    IAppDbContext db, ITenantContext tenantContext, AvailabilityEngine engine, TimeProvider timeProvider) : IPublicBookingService
+    IAppDbContext db, ITenantContext tenantContext, AvailabilityEngine engine, IManageLinks links, TimeProvider timeProvider)
+    : IPublicBookingService
 {
     /// <summary>Freno contra abusos: citas próximas que puede tener un mismo celular en un negocio.</summary>
     public const int MaxUpcomingPerCustomer = 3;
@@ -138,7 +139,6 @@ public class PublicBookingService(
         if (!string.IsNullOrWhiteSpace(request.CustomerEmail)) customer.Email = request.CustomerEmail.Trim();
         customer.PrivacyConsentAt = now;
 
-        var token = SecureTokens.Generate();
         var appointment = new Appointment
         {
             CustomerId = customer.Id,
@@ -147,9 +147,11 @@ public class PublicBookingService(
             StartsAtUtc = slot.StartUtc,
             EndsAtUtc = slot.EndUtc,
             Price = service.Price,
-            CustomerNote = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
-            ManageTokenHash = SecureTokens.Hash(token)
+            Source = AppointmentSource.Online,
+            CustomerNote = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim()
         };
+        var token = links.TokenFor(appointment.Id);
+        appointment.ManageTokenHash = SecureTokens.Hash(token);
         db.Appointments.Add(appointment);
 
         // Si otra reserva tomó el mismo horario entre el cálculo y este guardado, la restricción de exclusión de

@@ -38,6 +38,15 @@ public interface ITenantContext
     void Set(Guid? tenantId);
 }
 
+/// <summary>
+/// Token del enlace privado de una cita (/cita/{token}). Se deriva del id de la cita con una clave secreta del
+/// servidor, así se puede volver a generar para enviarlo por WhatsApp sin guardarlo: en la base solo va su hash.
+/// </summary>
+public interface IManageLinks
+{
+    string TokenFor(Guid appointmentId);
+}
+
 public static class TenantContextExtensions
 {
     public static Guid RequireTenantId(this ITenantContext tenant) =>
