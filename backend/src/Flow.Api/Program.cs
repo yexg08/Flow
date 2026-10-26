@@ -57,7 +57,10 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-app.UseSecurityHeaders(app.Environment.IsDevelopment());
+// frontend compilado (solo existe en la imagen de docker y en desarrollo lo sirve ng serve)
+var frontend = SpaFrontend.TryLoad(app.Environment.WebRootPath);
+
+app.UseSecurityHeaders(app.Environment.IsDevelopment(), frontend?.ContentSecurityPolicy);
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
@@ -65,11 +68,19 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Flow API"));
 }
-else
+else if (builder.Configuration.GetValue("Https:Redirect", true))
 {
     // HSTS: el navegador recuerda usar siempre HTTPS con este dominio.
+    // desactivar la redireccion a https solo sirve para probar la imagen de docker en local por http
     app.UseHsts();
     app.UseHttpsRedirection();
+}
+
+var staticFiles = new StaticFileOptions { OnPrepareResponse = SpaFrontend.SetCacheHeaders };
+if (frontend is not null)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles(staticFiles);
 }
 
 app.UseAuthentication();
@@ -77,6 +88,20 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+
+// sin datos y sin sesion (lo usa el healthcheck de docker)
+app.MapGet("/api/health", async (AppDbContext db, CancellationToken ct) =>
+        await db.Database.CanConnectAsync(ct)
+            ? Results.Ok(new { status = "ok" })
+            : Results.Json(new { status = "unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable))
+    .AllowAnonymous();
+
+if (frontend is not null)
+{
+    // cualquier ruta del frontend sin punto (como /app/agenda o /cita/abc) devuelve index.html y Angular decide la pantalla
+    // las rutas /api desconocidas y los archivos que no existen siguen dando 404
+    app.MapFallbackToFile("{*path:regex(^(?!api(/|$))[^.]*$)}", "index.html", staticFiles).AllowAnonymous();
+}
 
 await DbSeeder.SeedAsync(app.Services);
 

@@ -1,164 +1,298 @@
 # Flow
 
-**Reservas en línea para negocios que viven de las citas.** Flow es un SaaS multi-negocio: cada negocio (peluquería,
-consultorio, taller…) tiene su propio panel y su propia página pública de reservas, y sus datos quedan completamente
-aislados de los demás negocios.
+[![CI](https://github.com/yexg08/Flow/actions/workflows/ci.yml/badge.svg)](https://github.com/yexg08/Flow/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![.NET 10](https://img.shields.io/badge/.NET-10-512bd4)
+![Angular 22](https://img.shields.io/badge/Angular-22-dd0031)
+![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-336791)
 
-> Proyecto de portafolio en construcción. "Flow" es un nombre provisional.
+English · **[Español](README.es.md)**
+
+**Online booking for businesses that live on appointments.** Flow is a multi-tenant SaaS: every business (barbershop,
+clinic, workshop…) gets its own dashboard and its own public booking page, and its data is completely isolated from
+every other business.
+
+> Portfolio project. "Flow" is a working name. The UI is in Spanish (Colombia).
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Weekly agenda](docs/screenshots/agenda-week.png) | ![Public booking](docs/screenshots/booking.png) |
+| **Weekly agenda** of the business, by day or week and by team member | **Public booking** with no account: day and time |
+| ![Booking confirmed](docs/screenshots/booking-confirmed.png) | ![Metrics](docs/screenshots/metrics.png) |
+| **Booking confirmed**, with a private link to reschedule or cancel | **Business metrics** (owner only) |
+| ![Landing page, dark](docs/screenshots/landing-dark.png) | ![Landing page, light](docs/screenshots/landing-light.png) |
+| **Landing page**, dark theme | **Landing page**, light theme |
+| ![Platform admin](docs/screenshots/admin.png) | |
+| **Superadmin panel**: every business, suspend or reactivate | |
+
+## What is interesting about it
+
+- **Tenant isolation enforced in three layers, with tests that fail if any of them is removed.** The business comes
+  from the database, never from the client; a global EF Core query filter hides other businesses' rows; a save
+  interceptor refuses to write them. [How it works](#how-multi-tenancy-works)
+- **No double bookings, not even under concurrency.** A PostgreSQL exclusion constraint makes overlapping
+  appointments impossible; a test fires 8 simultaneous bookings for the same slot and exactly one succeeds. Without
+  the constraint, all 8 get in. [Details](#bookings)
+- **Time zones done properly.** Everything is stored in UTC and computed in the business's own time zone, and local
+  times that do not exist because of a daylight-saving jump are rejected.
+- **Reusable private links without storing secrets.** The link a customer receives is an HMAC of the appointment id,
+  so the business can resend it any time while the database keeps only its hash.
+- **Deny by default.** A test walks *every* API endpoint with every role to prove nobody reaches anything that is
+  not theirs, including endpoints added in the future.
+- **One-command run**, CI with dependency audit and a smoke test of the full Docker image.
+
+## Try it with Docker
+
+You only need [Docker Desktop](https://www.docker.com/products/docker-desktop/): one command starts the database, the
+API and the frontend, with no .NET or Node installed.
+
+```bash
+# 1. Create your .env file with random secrets (it is not committed)
+cat > .env <<EOF
+JWT_KEY=$(openssl rand -hex 32)
+LINKS_KEY=$(openssl rand -hex 32)
+SUPERADMIN_PASSWORD=Admin1$(openssl rand -hex 6)
+DEMO_DATA=true
+DEMO_PASSWORD=Demo1$(openssl rand -hex 6)
+EOF
+
+# 2. Build and start everything
+docker compose --profile app up --build
+```
+
+<details>
+<summary>On PowerShell (Windows), step 1 looks like this</summary>
+
+```powershell
+function New-Secret { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | ForEach-Object { $_.ToString('x2') }) }
+@"
+JWT_KEY=$(New-Secret)
+LINKS_KEY=$(New-Secret)
+SUPERADMIN_PASSWORD=Admin1$((New-Secret).Substring(0, 12))
+DEMO_DATA=true
+DEMO_PASSWORD=Demo1$((New-Secret).Substring(0, 12))
+"@ | Set-Content .env -Encoding ascii
+```
+
+</details>
+
+Open http://localhost:8080 (use Chrome, Edge or Firefox: Safari does not store `Secure` cookies over http). The
+passwords are in your `.env` file. With `DEMO_DATA=true` two businesses from Manizales are loaded, with staff,
+customers and appointments for the past weeks and the next one (dates are computed from today, so the agenda is never
+empty):
+
+| Account | Email | Password |
+|---|---|---|
+| Barbershop owner | `barberia@flow.demo` | `DEMO_PASSWORD` |
+| Barbershop employee | `empleado.barberia@flow.demo` | `DEMO_PASSWORD` |
+| Spa owner | `spa@flow.demo` | `DEMO_PASSWORD` |
+| Spa employee | `empleado.spa@flow.demo` | `DEMO_PASSWORD` |
+| Platform superadmin | `admin@flow.local` | `SUPERADMIN_PASSWORD` |
+
+Each business has its public page at `/n/barberia-don-mateo` and `/n/spa-montana`. To start over:
+`docker compose --profile app down -v`.
 
 ## Stack
 
-| Capa | Tecnología |
+| Layer | Technology |
 |---|---|
 | Backend | .NET 10, ASP.NET Core, EF Core 10, ASP.NET Identity, FluentValidation |
-| Base de datos | PostgreSQL 17 (Docker) |
+| Database | PostgreSQL 17 |
 | Frontend | Angular 22 (zoneless, standalone, signals, `httpResource`), Tailwind CSS v4, Angular CDK, Heroicons |
-| Pruebas | xUnit + `WebApplicationFactory` + **Testcontainers** (PostgreSQL real) · Vitest |
+| Tests | xUnit + `WebApplicationFactory` + **Testcontainers** (real PostgreSQL) · Vitest |
+| Infrastructure | Docker (single image: the API serves the compiled frontend) · GitHub Actions · Dependabot |
 
-## Estado
+```mermaid
+flowchart LR
+    Browser["Angular SPA"] -- "/api (JSON + JWT)" --> Api["ASP.NET Core API"]
+    Api --> App["Application<br/>use cases, validation"]
+    App --> Domain["Domain<br/>entities"]
+    Api --> Infra["Infrastructure<br/>EF Core, Identity, auth"]
+    Infra --> App
+    Infra --> Db[("PostgreSQL 17")]
+```
 
-| Fase | Contenido | Estado |
+Dependencies point inward: `Domain` knows nothing, `Application` only knows `Domain` (and talks to the outside through
+interfaces such as `IAppDbContext`), `Infrastructure` implements them, and `Api` wires everything together.
+
+## Status
+
+| Phase | Content | Status |
 |---|---|---|
-| 1 | Base: registro de negocios, login, aislamiento multi-negocio, superadmin, servicios, página pública | Hecha |
-| 2 | Equipo, horarios semanales y bloqueos | Hecha |
-| 3 | Reserva pública: horarios disponibles, reservar sin cuenta, cancelar/reprogramar | Hecha |
-| 4 | Agenda del negocio (día/semana), estados de cita, clientes | Hecha |
-| 5 | Cuentas del equipo, métricas, avisos por WhatsApp | Hecha |
-| 6 | Pulido: capturas, demo en vivo, CI, Docker completo | Pendiente |
-| Después | Módulo de pedidos para restaurantes (menú por QR) | Pendiente |
+| 1 | Foundation: business sign-up, login, multi-tenant isolation, superadmin, services, public page | Done |
+| 2 | Staff, weekly schedules and time off | Done |
+| 3 | Public booking: free slots, book without an account, cancel/reschedule | Done |
+| 4 | Business agenda (day/week), appointment statuses, customers | Done |
+| 5 | Staff accounts, metrics, WhatsApp notices | Done |
+| 6 | Repository polish: full Docker, CI, sample data, README | Done |
+| Next | Orders module for restaurants (menu through a QR code) | Planned |
 
-## Cómo funciona el multi-negocio
+## How multi-tenancy works
 
-Una sola base de datos y un solo esquema: **cada dato de un negocio lleva su `TenantId`**. El aislamiento tiene tres
-barreras, y cada una tiene pruebas:
+One database and one schema: **every row that belongs to a business carries its `TenantId`**. Isolation has three
+barriers, each covered by tests:
 
-1. **El negocio sale de la base de datos, nunca del cliente.** En cada petición, `SessionValidator`
-   (`Api/Auth/SessionValidator.cs`) revisa la cuenta en la base y agrega el `TenantId` a la sesión. Un token
-   fabricado con otro `tenant_id` no sirve: ese claim se descarta y se reconstruye. Si el negocio se suspende o la
-   cuenta se desactiva, la sesión se corta **en la siguiente petición**, sin esperar a que venza el token.
-2. **Filtro global de lectura** (`Infrastructure/Persistence/AppDbContext.cs`): toda entidad que implemente
-   `ITenantOwned` se filtra automáticamente por el negocio de la sesión, incluidas las que se agreguen en el futuro.
-   Pedir por id un dato de otro negocio da **404**, igual que un id inventado. Sin negocio en la sesión (superadmin o
-   anónimo), el filtro no deja pasar **ninguna** fila.
-3. **Interceptor de escritura** (`TenantInterceptor`): al crear un dato le pone el `TenantId` de la sesión (lo que
-   venga en la petición se ignora), y rechaza modificar o borrar datos de otro negocio, aunque un error de código los
-   hubiera cargado saltándose el filtro.
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant S as SessionValidator
+    participant D as AppDbContext
+    C->>A: Request with JWT
+    A->>S: Token validated
+    S->>D: Read the account and business from the database
+    S-->>A: tenant_id claim rebuilt (the token's own one is discarded)
+    A->>D: Query / save
+    Note over D: Global filter hides other businesses' rows<br/>Interceptor refuses cross-business writes
+```
 
-La **página pública** (`/n/{slug}`) es el único lugar que lee datos de negocio sin sesión: ignora el filtro de forma
-explícita, filtra a mano por el negocio del enlace y usa DTOs propios con solo los campos pensados para el público.
+1. **The business comes from the database, never from the client.** On every request `SessionValidator`
+   (`Api/Auth/SessionValidator.cs`) reads the account from the database and adds the `TenantId` to the session. A
+   forged token carrying another `tenant_id` is useless: that claim is discarded and rebuilt. If the business is
+   suspended or the account is deactivated, the session is cut **on the very next request**, without waiting for the
+   token to expire.
+2. **Global read filter** (`Infrastructure/Persistence/AppDbContext.cs`): every entity implementing `ITenantOwned` is
+   automatically filtered by the session's business, including ones added in the future. Asking for another
+   business's row by id returns **404**, exactly like an invented id. With no business in the session (superadmin or
+   anonymous), the filter lets **no** row through.
+3. **Write interceptor** (`TenantInterceptor`): when creating a row it sets the session's `TenantId` (whatever the
+   request carried is ignored), and it refuses to modify or delete another business's rows, even if a code mistake had
+   loaded them by bypassing the filter.
 
-### Equipo, horarios y bloqueos
+The **public page** (`/n/{slug}`) is the only place that reads business data without a session: it sets the business
+explicitly from the link and uses dedicated DTOs with only the fields meant for the public.
 
-- El **equipo** son las personas que atienden (no son cuentas de usuario): nombre, color en la agenda y los
-  servicios que hace. Solo se le pueden asignar servicios del propio negocio.
-- El **horario semanal** admite varios tramos por día (mañana y tarde). Las reglas (formato `HH:mm`, pasos de 5
-  minutos, cierre después de la apertura, sin tramos que se crucen) están en `Application/Team/Schedule.cs` y se
-  repiten en el frontend (`shared/schedule.ts`) para guiar al usuario; la base además tiene una restricción `CHECK`.
-- Los **bloqueos** son de una persona o de todo el negocio (un festivo). Se escriben y se muestran en la **hora local
-  del negocio** y se guardan en UTC según su zona horaria. Las horas que no existen por el cambio de horario se
-  rechazan.
-- Borrar un servicio lo quita de quienes lo hacían; borrar a una persona borra su horario y sus bloqueos (en cascada
-  en la base de datos).
+Mutation checks: removing the global filter makes the isolation tests fail, and removing the exclusion constraint lets
+all 8 concurrent bookings through.
 
-### Reservas
+### Staff, schedules and time off
 
-- **Horarios libres** (`Application/Booking/AvailabilityEngine.cs`): cada 15 minutos dentro de los tramos del horario
-  donde cabe el servicio completo, sin cruzarse con otras citas ni con bloqueos, con al menos 15 minutos de
-  anticipación y hasta 60 días adelante. Todo se calcula en la zona horaria del negocio.
-- **Reservar sin cuenta**: nombre, celular y autorización expresa del uso de los datos (Ley 1581). El cliente queda
-  identificado por su celular dentro de cada negocio, con máximo 3 citas próximas por celular. Con "cualquier
-  persona", la cita va a quien tenga menos citas ese día.
-- **El servidor nunca confía en el navegador**: al reservar vuelve a calcular el horario y toma el precio de la base.
-- **Sin dobles reservas, ni siquiera simultáneas**: además de la validación de la app, PostgreSQL tiene una
-  restricción de exclusión (`EXCLUDE USING gist`, con `btree_gist`) que impide dos citas activas de la misma persona
-  con rangos cruzados. Una prueba lanza 8 reservas al mismo tiempo por el mismo horario y solo una entra; sin la
-  restricción, entran las 8.
-- **Enlace privado para gestionar la cita** (`/cita/{token}`): ver, reprogramar o cancelar. El token tiene 256 bits y
-  en la base solo se guarda su SHA-256. Es la única consulta que busca entre todos los negocios; después se fija el
-  negocio de esa cita y todo lo demás pasa por el filtro normal. La página usa `Referrer-Policy: no-referrer` para que
-  el token no viaje a otros sitios.
-- Un servicio o una persona con citas no se puede borrar (se desactiva), para no perder el historial.
+- **Staff** are the people who attend customers (not user accounts): name, agenda color and the services they do. Only
+  services of the same business can be assigned.
+- The **weekly schedule** allows several ranges per day (morning and afternoon). The rules (`HH:mm` format, 5-minute
+  steps, closing after opening, no overlapping ranges) live in `Application/Team/Schedule.cs` and are mirrored in the
+  frontend (`shared/schedule.ts`) to guide the user; the database also has a `CHECK` constraint.
+- **Time off** belongs to one person or to the whole business (a holiday). It is entered and shown in the business's
+  **local time** and stored in UTC according to its time zone. Times that do not exist because of a daylight-saving
+  jump are rejected.
+- Deleting a service removes it from whoever did it; deleting a person deletes their schedule and time off (cascade).
 
-### Agenda y clientes
+### Bookings
 
-- **Agenda por día** (una columna por persona) **y por semana** (con filtro por persona), con los bloqueos sombreados
-  y la hora actual marcada. Las citas que se cruzan se dibujan lado a lado (`shared/agenda-layout.ts`, con pruebas).
-- **Agendar desde el panel** (llamadas, clientes que llegan en persona): se puede fuera del horario del equipo, porque
-  lo decide el negocio, pero nunca encima de otra cita de la misma persona ni durante un bloqueo.
-- **Estados**: confirmada → atendida o no asistió (solo cuando ya empezó) o cancelada. Todo se puede deshacer;
-  reactivar una cancelada exige que el horario siga libre.
-- **Clientes**: búsqueda por nombre o celular, visitas, inasistencias, próxima cita, historial completo y notas
-  internas que el cliente no ve.
+- **Free slots** (`Application/Booking/AvailabilityEngine.cs`): every 15 minutes inside the schedule ranges where the
+  whole service fits, without crossing other appointments or time off, with at least 15 minutes of notice and up to 60
+  days ahead. Everything is computed in the business's time zone.
+- **Book without an account**: name, phone and explicit consent for data use (Colombian Law 1581). The customer is
+  identified by phone within each business, with at most 3 upcoming appointments per phone. With "anyone", the
+  appointment goes to whoever has the fewest appointments that day.
+- **The server never trusts the browser**: when booking it recomputes the slot and takes the price from the database.
+- **No double bookings, not even simultaneous ones**: besides the application check, PostgreSQL has an exclusion
+  constraint (`EXCLUDE USING gist`, with `btree_gist`) that forbids two active appointments of the same person with
+  overlapping ranges. A test fires 8 bookings at the same time for the same slot and only one gets in; without the
+  constraint, all 8 do.
+- **Private link to manage the appointment** (`/cita/{token}`): view, reschedule or cancel. The token has 256 bits and
+  only its SHA-256 is stored. It is the only query that searches across all businesses; afterwards the business of that
+  appointment is set and everything else goes through the normal filter. The page uses `Referrer-Policy: no-referrer`
+  so the token never travels to other sites.
+- A service or person with appointments cannot be deleted (it is deactivated), so history is never lost.
 
-### Equipo con acceso, métricas y avisos
+### Agenda and customers
 
-- **Cuentas del equipo**: el dueño le da acceso al panel a una persona del equipo con su correo. El sistema genera
-  una contraseña temporal (16 caracteres, sin caracteres que se confundan) que se ve **una sola vez**, vence a los
-  **7 días** y obliga a cambiarla en el primer ingreso: mientras tanto la cuenta solo puede usar el cambio de
-  contraseña (lo aplica la API, no solo la pantalla). Generar otra o quitar el acceso corta sus sesiones al instante.
-  Borrar a la persona borra también su cuenta, o nada si la persona tiene citas.
-- **Métricas** (solo el dueño): ingresos de las citas atendidas, próximas citas y lo que falta por cobrar, clientes
-  nuevos, porcentaje de reservas en línea, tasa de inasistencia, citas por día, servicios más pedidos y citas por
-  persona. La gráfica tiene vista de tabla y su color está validado para ambos temas.
-- **Avisos por WhatsApp**: desde el detalle de una cita, confirmación o recordatorio en un clic con enlaces `wa.me`
-  (sin costo ni API de pago), con el enlace privado de la cita incluido.
-- **Enlaces de cita reconstruibles**: el token es `HMAC-SHA256(Links:Key, id de la cita)`, así el negocio puede volver
-  a enviarlo cuando quiera sin guardarlo; en la base solo está su hash.
+- **Day agenda** (one column per person) **and week agenda** (filter by person), with time off shaded and the current
+  time marked. Overlapping appointments are drawn side by side (`shared/agenda-layout.ts`, unit-tested).
+- **Booking from the dashboard** (phone calls, walk-ins): allowed outside the staff's schedule, because the business
+  decides, but never on top of another appointment of the same person or during time off.
+- **Statuses**: confirmed → attended, no-show (only once it has started) or cancelled. Everything can be undone;
+  reactivating a cancelled appointment requires the slot to still be free.
+- **Customers**: search by name or phone, visits, no-shows, next appointment, full history and internal notes the
+  customer never sees.
+
+### Staff accounts, metrics and notices
+
+- **Staff accounts**: the owner gives a staff member access to the dashboard with their email. The system generates a
+  temporary password (16 characters, no look-alike characters) that is shown **only once**, expires after **7 days** and
+  forces a change on first login: until then the account can only use the change-password endpoint (enforced by the API,
+  not just the screen). Generating another one or removing access cuts their sessions instantly. Deleting the person
+  also deletes their account, or nothing at all if the person has appointments.
+- **Metrics** (owner only): revenue from attended appointments, upcoming appointments and what is still to be
+  collected, new customers, share of online bookings, no-show rate, appointments per day, most requested services and
+  appointments per person. The chart has a table view and its color is validated for both themes.
+- **WhatsApp notices**: from the appointment detail, a confirmation or reminder in one click using `wa.me` links (no
+  cost and no paid API), with the private appointment link included.
+- **Rebuildable appointment links**: the token is `HMAC-SHA256(Links:Key, appointment id)`, so the business can resend
+  it whenever it wants without storing it; only its hash is in the database.
 
 ### Roles
 
-| Rol | Qué puede usar |
+| Role | What it can use |
 |---|---|
-| **Superadmin** | Panel de la plataforma (`/admin`): todos los negocios, suspender/reactivar. No ve datos internos de los negocios. |
-| **Dueño** | Todo el panel de su negocio, incluidos servicios y ajustes. |
-| **Empleado** | Agenda, clientes y marcar asistencia. No puede cambiar servicios, equipo ni ajustes, ni ver métricas. |
-| Cliente final | No tiene cuenta: usa la página pública del negocio. |
+| **Superadmin** | Platform panel (`/admin`): every business, suspend/reactivate. Cannot see businesses' internal data. |
+| **Owner** | The whole dashboard of their business, including services and settings. |
+| **Employee** | Agenda, customers and marking attendance. Cannot change services, staff or settings, nor see metrics. |
+| End customer | No account: uses the business's public page. |
 
-**Denegar por defecto:** la política de respaldo de ASP.NET exige ser miembro de un negocio. Un endpoint nuevo sin
-atributos nunca queda abierto al público ni al superadmin por olvido (`Api/Auth/Policies.cs`). `AuthorizationTests`
-recorre **todos** los endpoints de la API con cada rol para comprobarlo.
+**Deny by default:** the ASP.NET fallback policy requires being a member of a business. A new endpoint with no
+attributes is never open to the public or to the superadmin by mistake (`Api/Auth/Policies.cs`). `AuthorizationTests`
+walks **every** API endpoint with each role to verify it.
 
-### Otras medidas de seguridad
+### Other security measures
 
-- Contraseñas con hash (Identity); bloqueo de 15 minutos tras 5 intentos fallidos; límite de peticiones por IP en
-  login, registro, disponibilidad de enlace y páginas públicas.
-- El login responde igual y tarda lo mismo con un correo inexistente (no se puede averiguar qué correos tienen cuenta).
-- Access token JWT de 15 minutos solo en memoria del navegador; refresh token de 7 días en cookie `httpOnly`,
-  `Secure`, `SameSite=Strict`, rotado en cada uso. Reusar un refresh token ya rotado cierra todas las sesiones del
-  usuario.
-- Cabeceras de seguridad (CSP, `nosniff`, `X-Frame-Options`…) en todas las respuestas, HSTS fuera de desarrollo,
-  peticiones de máximo 1 MB.
-- Búsquedas del superadmin con los comodines de `LIKE` escapados.
+- Hashed passwords (Identity); 15-minute lockout after 5 failed attempts; per-IP rate limits on login, sign-up, link
+  availability and public pages.
+- Login answers the same way and takes the same time for a nonexistent email (you cannot find out which emails have an
+  account).
+- 15-minute JWT access token kept only in the browser's memory; 7-day refresh token in an `httpOnly`, `Secure`,
+  `SameSite=Strict` cookie, rotated on every use. Reusing an already-rotated refresh token closes all of that user's
+  sessions.
+- Security headers (CSP, `nosniff`, `X-Frame-Options`…) on every response, HSTS outside development, 1 MB request
+  limit. When the API serves the frontend, its CSP authorizes only the exact inline scripts of `index.html` by hash,
+  with no `unsafe-inline` for scripts.
+- Admin searches escape `LIKE` wildcards.
 
-## Requisitos
+## Local development
+
+For hot reload while developing, instead of the Docker image.
+
+### Requirements
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js](https://nodejs.org/) 24+
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (base de datos y pruebas del backend)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (database and backend tests)
 
-## Primera vez
+### First time
 
 ```bash
-# 1. Base de datos (PostgreSQL en el puerto 5434)
+# 1. Database (PostgreSQL on port 5434)
 docker compose up -d
 
-# 2. Contraseña del superadmin (la clave JWT ya está configurada en user-secrets)
+# 2. Secrets (the API will not start without them)
 cd backend/src/Flow.Api
-dotnet user-secrets set "Seed:SuperAdminPassword" "<mínimo 10 caracteres, con letras y números>"
-#    Si clonaste el repo en otro equipo, genera también las dos claves (mínimo 32 caracteres cada una, distintas):
-#    dotnet user-secrets set "Jwt:Key" "<texto aleatorio largo>"
-#    dotnet user-secrets set "Links:Key" "<otro texto aleatorio largo>"
-#    Sin ellas la API no arranca. Cambiar Links:Key invalida todos los enlaces de cita ya enviados.
+dotnet user-secrets set "Jwt:Key" "<long random text, 32+ characters>"
+dotnet user-secrets set "Links:Key" "<another long random text, 32+ characters>"
+dotnet user-secrets set "Seed:SuperAdminPassword" "<10+ characters, letters and numbers>"
 
-# 3. Dependencias del frontend
+# 3. Frontend dependencies
 cd ../../../frontend
 npm install
 ```
 
-El superadmin se crea al arrancar la API con el correo de `appsettings.json` (`admin@flow.local`) y la contraseña
-de user-secrets. Las migraciones se aplican solas al arrancar.
+The superadmin is created when the API starts, with the email from `appsettings.json` (`admin@flow.local`) and the
+password from user-secrets. Migrations are applied automatically on startup. Changing `Links:Key` invalidates every
+appointment link already sent.
 
-## Uso diario
+Sample data (optional, the same two businesses as in the Docker section):
+
+```bash
+cd backend/src/Flow.Api
+dotnet user-secrets set "Seed:DemoData" "true"
+dotnet user-secrets set "Seed:DemoPassword" "<10+ characters, letters and numbers>"
+```
+
+It is never duplicated: if the sample businesses already exist, they are skipped.
+
+### Day to day
 
 ```bash
 # Terminal 1: API (http://localhost:5090)
@@ -170,25 +304,25 @@ cd frontend
 npm start
 ```
 
-El frontend llama a `/api` y el proxy de Angular (`proxy.conf.json`) lo reenvía a la API: todo queda en el mismo
-origen y no hace falta CORS.
+The frontend calls `/api` and Angular's proxy (`proxy.conf.json`) forwards it to the API, so everything shares one
+origin and CORS is not needed.
 
-| Ruta | Pantalla |
+| Route | Screen |
 |---|---|
-| `/` | Página de inicio de Flow |
-| `/registro` | Crear un negocio (registro abierto) |
-| `/login` | Iniciar sesión |
-| `/app` | Panel del negocio: inicio, agenda, clientes, servicios, equipo y horarios, bloqueos, métricas, ajustes |
-| `/cambiar-contrasena` | Primer ingreso de un empleado con contraseña temporal |
-| `/admin` | Panel de la plataforma (superadmin) |
-| `/n/{enlace}` | Página pública de un negocio |
-| `/n/{enlace}/reservar/{servicio}` | Reservar: persona, día, hora y datos |
-| `/cita/{token}` | La cita del cliente: ver, reprogramar o cancelar |
+| `/` | Flow landing page |
+| `/registro` | Create a business (open sign-up) |
+| `/login` | Sign in |
+| `/app` | Business dashboard: home, agenda, customers, services, staff and schedules, time off, metrics, settings |
+| `/cambiar-contrasena` | First login of an employee with a temporary password |
+| `/admin` | Platform panel (superadmin) |
+| `/n/{slug}` | A business's public page |
+| `/n/{slug}/reservar/{service}` | Book: person, day, time and details |
+| `/cita/{token}` | The customer's appointment: view, reschedule or cancel |
 
-## Pruebas
+## Tests
 
 ```bash
-# Backend: necesita Docker encendido (Testcontainers levanta un PostgreSQL desechable)
+# Backend: needs Docker running (Testcontainers starts a disposable PostgreSQL)
 cd backend
 dotnet test
 
@@ -197,26 +331,47 @@ cd frontend
 npx ng test --watch=false
 ```
 
-## Estructura
+**GitHub Actions** (`.github/workflows/ci.yml`) runs on every push and pull request:
+
+- build and tests for the backend (with Testcontainers) and the frontend;
+- dependency audit: NuGet or npm packages with known vulnerabilities fail the run;
+- Docker image build and a **smoke test** of the whole app: it starts with `docker compose`, checks the frontend, the
+  security headers, that `/api` demands a session and that the sample login works.
+
+Dependabot proposes weekly updates for NuGet, npm, GitHub Actions and Docker.
+
+## Project structure
 
 ```
 backend/
   src/
-    Flow.Domain/          Entidades (Tenant, BookableService…) e ITenantOwned
-    Flow.Application/     Casos de uso, DTOs, validaciones, reglas del enlace (Slugs)
-    Flow.Infrastructure/  EF Core + Identity, filtro e interceptor de negocio, auth, migraciones
-    Flow.Api/             Controladores, políticas, validación de sesión, cabeceras, límites
-  tests/Flow.Tests/       Integración contra PostgreSQL real + unitarias
+    Flow.Domain/          Entities (Tenant, BookableService…) and ITenantOwned
+    Flow.Application/     Use cases, DTOs, validation, link rules (Slugs)
+    Flow.Infrastructure/  EF Core + Identity, tenant filter and interceptor, auth, migrations, sample data
+    Flow.Api/             Controllers, policies, session validation, headers, limits, compiled frontend
+  tests/Flow.Tests/       Integration tests against a real PostgreSQL + unit tests
 frontend/
   src/app/
-    core/                 Sesión, interceptores, guards, tema, avisos
-    shared/               Logo, diálogo de confirmación, formatos, reglas del enlace
-    features/             landing, auth, app (panel del negocio), admin, public
+    core/                 Session, interceptors, guards, theme, toasts
+    shared/               Logo, confirmation dialog, formats, link rules
+    features/             landing, auth, app (business dashboard), admin, public
+Dockerfile                Single image (builds the frontend and the API and joins them)
+docker-compose.yml        Database; with --profile app also the whole app
+.github/                  CI (GitHub Actions) and Dependabot
 ```
 
-## Crear una migración
+### Creating a migration
 
 ```bash
 cd backend
-dotnet ef migrations add NombreDeLaMigracion --project src/Flow.Infrastructure --startup-project src/Flow.Infrastructure --output-dir Persistence/Migrations
+dotnet ef migrations add MigrationName --project src/Flow.Infrastructure --startup-project src/Flow.Infrastructure --output-dir Persistence/Migrations
 ```
+
+## Roadmap
+
+- **Orders module for restaurants** (menu through a QR code), reusing the same multi-tenant base.
+- A definitive product name.
+
+## License
+
+[MIT](LICENSE)

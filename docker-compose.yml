@@ -8,11 +8,11 @@ services:
     environment:
       POSTGRES_DB: flow
       POSTGRES_USER: flow
-      # Solo para desarrollo local. Debe coincidir con appsettings.Development.json.
+      # solo para desarrollo local (debe coincidir con appsettings.Development.json)
       POSTGRES_PASSWORD: flow_dev_password
       TZ: UTC
     ports:
-      # 5434 para no chocar con otros PostgreSQL locales (el AIS Dashboard usa el 5433).
+      # 5434 para no chocar con otros PostgreSQL locales (el AIS Dashboard usa el 5433)
       - "5434:5432"
     volumes:
       - flow_data:/var/lib/postgresql/data
@@ -21,6 +21,29 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # la app completa (API y frontend) con docker compose --profile app up --build
+  # sin el perfil app solo se levanta la base de datos (para desarrollar con dotnet run y npm start)
+  app:
+    profiles: ["app"]
+    build: .
+    image: flow-app
+    container_name: flow-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=flow;Username=flow;Password=flow_dev_password
+      Jwt__Key: ${JWT_KEY:-}
+      Links__Key: ${LINKS_KEY:-}
+      Seed__SuperAdminPassword: ${SUPERADMIN_PASSWORD:-}
+      Seed__DemoData: ${DEMO_DATA:-false}
+      Seed__DemoPassword: ${DEMO_PASSWORD:-}
+      # el contenedor se prueba por http en localhost (en produccion va detras de https)
+      Https__Redirect: "false"
 
 volumes:
   flow_data:

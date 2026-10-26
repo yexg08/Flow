@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# permisos minimos (los jobs solo leen el codigo)
+permissions:
+  contents: read
+
+# si llega otro push a la misma rama se cancela la ejecucion anterior
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build and tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore backend/Flow.slnx
+      - run: dotnet build backend/Flow.slnx --no-restore -c Release
+      # las pruebas de integracion levantan un PostgreSQL real con Testcontainers (el runner trae Docker)
+      - run: dotnet test backend/Flow.slnx --no-build -c Release
+
+  frontend:
+    name: Frontend (build and tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npx ng test --watch=false
+
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: NuGet packages with known vulnerabilities
+        run: |
+          dotnet restore backend/Flow.slnx
+          dotnet list backend/Flow.slnx package --vulnerable --include-transitive | tee nuget-audit.txt
+          if grep -q "has the following vulnerable packages" nuget-audit.txt; then exit 1; fi
+      - name: npm packages with known vulnerabilities
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --audit-level=high
+
+  docker:
+    name: Docker (image and smoke test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and start the full app (database, API and frontend)
+        run: |
+          cat > .env <<ENV
+          JWT_KEY=$(openssl rand -hex 32)
+          LINKS_KEY=$(openssl rand -hex 32)
+          SUPERADMIN_PASSWORD=Ci$(openssl rand -hex 8)
+          DEMO_DATA=true
+          DEMO_PASSWORD=Demo$(openssl rand -hex 8)
+          ENV
+          docker compose --profile app up -d --build
+      - name: Wait until the API is healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/api/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker compose --profile app logs app
+          exit 1
+      - name: Smoke test (frontend, security headers and demo login)
+        run: |
+          curl -sf http://localhost:8080/ | grep -q "<app-root>"
+          curl -sf http://localhost:8080/app/agenda | grep -q "<app-root>"
+          curl -sI http://localhost:8080/ | grep -qi "^content-security-policy:"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/services)" = "401"
+          set -a; . ./.env; set +a
+          curl -sf -X POST http://localhost:8080/api/auth/login \
+            -H 'content-type: application/json' \
+            -d "{\"email\":\"barberia@flow.demo\",\"password\":\"$DEMO_PASSWORD\"}" | grep -q accessToken
+      - name: Show the logs if something failed
+        if: failure()
+        run: docker compose --profile app logs
+      - name: Stop everything
+        if: always()
+        run: docker compose --profile app down -v
