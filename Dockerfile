@@ -9,7 +9,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # etapa 2 (compilar y publicar la API)
-FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS backend
+FROM mcr.microsoft.com/dotnet/sdk:11.0-alpine AS backend
 WORKDIR /src
 # primero solo los proyectos (asi la restauracion de paquetes queda en cache si el codigo cambia)
 COPY backend/src/Flow.Domain/Flow.Domain.csproj Flow.Domain/
